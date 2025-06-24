@@ -9,24 +9,98 @@ import {
   Euro,
   Copy,
   ExternalLink,
-  Settings
+  Settings,
+  LogOut
 } from 'lucide-react';
 import { AdminPanel } from './components';
-import { loadClientData, ClientData, Facture, Contenu, Credential, Rapport } from './utils/clientDataManager';
+import LoginForm from './components/LoginForm';
+import AdminDashboard from './components/AdminDashboard';
+import { 
+  loadClientData, 
+  saveClientData, 
+  ClientData, 
+  Facture, 
+  Contenu, 
+  Credential, 
+  Rapport 
+} from './utils/clientDataManager';
+import { 
+  authenticateUser, 
+  User as AuthUser,
+  updateClientData 
+} from './utils/authManager';
 
 function App() {
   const [activeTab, setActiveTab] = useState('factures');
   const [showAdmin, setShowAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [loginError, setLoginError] = useState('');
   const [clientData, setClientData] = useState<ClientData>(() => loadClientData());
+
+  // Gérer la connexion
+  const handleLogin = (username: string, password: string) => {
+    const user = authenticateUser(username, password);
+    if (user) {
+      setCurrentUser(user);
+      setLoginError('');
+      
+      // Si c'est un client, charger ses données
+      if (user.role === 'client' && user.data) {
+        const userData: ClientData = {
+          name: user.name || '',
+          company: user.company || '',
+          factures: user.data.factures || [],
+          contenus: user.data.contenus || [],
+          credentials: user.data.credentials || [],
+          rapports: user.data.rapports || []
+        };
+        setClientData(userData);
+      }
+    } else {
+      setLoginError('Email ou mot de passe incorrect');
+    }
+  };
+
+  // Gérer la déconnexion
+  const handleLogout = () => {
+    setCurrentUser(null);
+    setShowAdmin(false);
+    setLoginError('');
+    setClientData(loadClientData()); // Recharger les données par défaut
+  };
 
   // Recharger les données depuis localStorage quand on revient du mode admin
   useEffect(() => {
-    if (!showAdmin) {
-      setClientData(loadClientData());
+    if (!showAdmin && currentUser?.role === 'client' && currentUser.data) {
+      const userData: ClientData = {
+        name: currentUser.name || '',
+        company: currentUser.company || '',
+        factures: currentUser.data.factures || [],
+        contenus: currentUser.data.contenus || [],
+        credentials: currentUser.data.credentials || [],
+        rapports: currentUser.data.rapports || []
+      };
+      setClientData(userData);
     }
-  }, [showAdmin]);
+  }, [showAdmin, currentUser]);
 
-  // Si on est en mode admin, afficher le panel admin
+  // Si pas connecté, afficher le formulaire de connexion
+  if (!currentUser) {
+    return <LoginForm onLogin={handleLogin} error={loginError} />;
+  }
+
+  // Si admin et en mode dashboard admin
+  if (currentUser.role === 'admin' && showAdmin) {
+    return (
+      <AdminDashboard 
+        onBackToClient={() => setShowAdmin(false)}
+        onLogout={handleLogout}
+        currentUser={currentUser}
+      />
+    );
+  }
+
+  // Si admin et pas en mode dashboard, ou si client en mode admin
   if (showAdmin) {
     return <AdminPanel onBackToClient={() => setShowAdmin(false)} />;
   }
@@ -82,14 +156,35 @@ function App() {
               <p className="text-sm text-gray-500">Portail Client</p>
               <p className="text-lg font-semibold text-blue-600">Agence Digitale</p>
             </div>
-            <button
-              onClick={() => setShowAdmin(true)}
-              className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200"
-              title="Accès Administration"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Admin</span>
-            </button>
+            <div className="flex items-center space-x-2">
+              {currentUser.role === 'admin' ? (
+                <button
+                  onClick={() => setShowAdmin(true)}
+                  className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200"
+                  title="Dashboard Admin"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => setShowAdmin(true)}
+                  className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200"
+                  title="Accès Administration"
+                >
+                  <Settings className="w-4 h-4" />
+                  <span className="hidden sm:inline">Admin</span>
+                </button>
+              )}
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors duration-200"
+                title="Déconnexion"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Déconnexion</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
