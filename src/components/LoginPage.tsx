@@ -40,11 +40,15 @@ const LoginPage: React.FC = () => {
       <div className="max-w-md w-full">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-white" />
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/IMG_0214.PNG" 
+              alt="Infinity Agency Logo" 
+              className="h-20 w-auto object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Portail Client</h1>
-          <p className="text-gray-600">Agence Digitale</p>
+          <p className="text-gray-600">Infinity Agency</p>
         </div>
 
         {/* Formulaire de connexion */}

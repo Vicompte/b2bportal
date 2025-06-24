@@ -677,12 +677,14 @@ const AdminDashboard: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
             <div className="flex items-center space-x-4">
-              <div className="w-10 h-10 bg-purple-500 rounded-lg flex items-center justify-center">
-                <Shield className="w-6 h-6" />
-              </div>
+              <img 
+                src="/IMG_0214.PNG" 
+                alt="Infinity Agency Logo" 
+                className="h-10 w-auto object-contain"
+              />
               <div>
                 <h1 className="text-xl font-semibold">Dashboard Admin</h1>
-                <p className="text-purple-200 text-sm">Bienvenue {currentUser?.name}</p>
+                <p className="text-purple-200 text-sm">Bienvenue {currentUser?.name} - Infinity Agency</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">

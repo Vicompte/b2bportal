@@ -78,9 +78,11 @@ const ClientPortal: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-6">
           <div className="flex items-center space-x-4">
-            <div className="w-12 h-12 bg-blue-600 rounded-lg flex items-center justify-center">
-              <User className="w-6 h-6 text-white" />
-            </div>
+            <img 
+              src="/IMG_0214.PNG" 
+              alt="Infinity Agency Logo" 
+              className="h-12 w-auto object-contain"
+            />
             <div>
               <h1 className="text-xl font-semibold text-gray-900">{clientData.name}</h1>
               <p className="text-sm text-gray-500">{clientData.company}</p>
@@ -89,7 +91,7 @@ const ClientPortal: React.FC = () => {
           <div className="flex items-center space-x-4">
             <div className="text-right">
               <p className="text-sm text-gray-500">Portail Client</p>
-              <p className="text-lg font-semibold text-blue-600">Agence Digitale</p>
+              <p className="text-lg font-semibold text-blue-600">Infinity Agency</p>
             </div>
             <button
               onClick={logout}
