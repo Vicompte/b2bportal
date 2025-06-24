@@ -47,6 +47,12 @@ const defaultUsers: User[] = [
 
 const STORAGE_KEY = 'authData';
 
+// Fonction pour réinitialiser les données (utile pour le développement)
+export const resetAuthData = (): void => {
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.removeItem('currentUser');
+};
+
 // Charger les données d'authentification
 export const loadAuthData = (): AuthState => {
   try {
@@ -54,6 +60,24 @@ export const loadAuthData = (): AuthState => {
     if (stored) {
       const parsed = JSON.parse(stored);
       if (parsed && parsed.users && Array.isArray(parsed.users)) {
+        // Vérifier si l'admin existe avec les bons identifiants
+        const adminExists = parsed.users.find(u => 
+          u.role === 'admin' && 
+          u.username === 'contact@infinityagency.be' && 
+          u.password === 'InfinityAgency1812**'
+        );
+        
+        if (!adminExists) {
+          // Si l'admin n'existe pas avec les bons identifiants, réinitialiser
+          console.log('Admin avec nouveaux identifiants non trouvé, réinitialisation...');
+          resetAuthData();
+          return {
+            isAuthenticated: false,
+            currentUser: null,
+            users: defaultUsers
+          };
+        }
+        
         return {
           isAuthenticated: false,
           currentUser: null,
@@ -63,6 +87,7 @@ export const loadAuthData = (): AuthState => {
     }
   } catch (error) {
     console.error('Erreur lors du chargement des données auth:', error);
+    resetAuthData();
   }
   
   // Retourner les données par défaut
