@@ -20,118 +20,17 @@ export interface AuthState {
   users: User[];
 }
 
-// Données par défaut des utilisateurs
+// Données par défaut des utilisateurs - SEUL ADMIN
 const defaultUsers: User[] = [
   {
     id: "admin",
     role: "admin",
-    username: "agence@demo.com",
-    password: "motdepasse",
+    username: "contact@infinityagency.be",
+    password: "InfinityAgency1812**",
     name: "Administrateur",
-    company: "Agence Digitale"
-  },
-  {
-    id: "client1",
-    role: "client",
-    username: "client1@email.com",
-    password: "simple",
-    name: "Martin Dubois",
-    company: "TechStart Innovation",
-    data: {
-      factures: [
-        {
-          id: 1,
-          numero: 'FAC-2025-001',
-          date: '2025-01-15',
-          montant: 3500,
-          statut: 'payee',
-          description: 'Développement site web e-commerce'
-        },
-        {
-          id: 2,
-          numero: 'FAC-2025-002',
-          date: '2025-02-01',
-          montant: 1200,
-          statut: 'en_attente',
-          description: 'Maintenance et SEO mensuel'
-        }
-      ],
-      contenus: [
-        {
-          id: 1,
-          nom: 'Vidéos Promotionnelles Q1 2025',
-          lien: 'https://drive.google.com/drive/folders/1ABCDefGHijKLMnOPqrsTUVwxyz123456',
-          date: '2025-01-20',
-          type: 'video'
-        }
-      ],
-      credentials: [
-        {
-          id: 1,
-          service: 'WordPress Admin',
-          username: 'admin@techstart-innovation.com',
-          password: 'SecureWP2025!',
-          url: 'https://techstart-innovation.com/wp-admin'
-        }
-      ],
-      rapports: [
-        {
-          id: 1,
-          nom: 'Rapport SEO - Janvier 2025',
-          lien: 'https://drive.google.com/file/d/1ABCDefGHijKLMnOPqrsTUVwxyz123456/view',
-          date: '2025-01-31',
-          type: 'seo'
-        }
-      ]
-    }
-  },
-  {
-    id: "client2",
-    role: "client",
-    username: "client2@email.com",
-    password: "simple",
-    name: "Sophie Laurent",
-    company: "Creative Studio",
-    data: {
-      factures: [
-        {
-          id: 1,
-          numero: 'FAC-2025-005',
-          date: '2025-02-10',
-          montant: 2500,
-          statut: 'payee',
-          description: 'Création identité visuelle'
-        }
-      ],
-      contenus: [
-        {
-          id: 1,
-          nom: 'Logo et Charte Graphique',
-          lien: 'https://drive.google.com/drive/folders/2ABCDefGHijKLMnOPqrsTUVwxyz123456',
-          date: '2025-02-15',
-          type: 'branding'
-        }
-      ],
-      credentials: [
-        {
-          id: 1,
-          service: 'Instagram Business',
-          username: 'creative@studio.com',
-          password: 'Instagram2025!',
-          url: 'https://business.instagram.com'
-        }
-      ],
-      rapports: [
-        {
-          id: 1,
-          nom: 'Analyse Performance Social Media',
-          lien: 'https://drive.google.com/file/d/2ABCDefGHijKLMnOPqrsTUVwxyz123456/view',
-          date: '2025-02-28',
-          type: 'performance'
-        }
-      ]
-    }
+    company: "Infinity Agency"
   }
+  // Aucun client par défaut - tableau vide
 ];
 
 const STORAGE_KEY = 'authData';

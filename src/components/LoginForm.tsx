@@ -27,11 +27,15 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, error }) => {
       <div className="max-w-md w-full">
         {/* Logo/Header */}
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <User className="w-8 h-8 text-white" />
+          <div className="flex justify-center mb-6">
+            <img 
+              src="/IMG_0214.PNG" 
+              alt="Infinity Agency Logo" 
+              className="h-20 w-auto object-contain"
+            />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Portail Client</h1>
-          <p className="text-gray-600">Agence Digitale</p>
+          <p className="text-gray-600">Infinity Agency</p>
         </div>
 
         {/* Formulaire de connexion */}
@@ -99,25 +103,6 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, error }) => {
               )}
             </button>
           </form>
-
-          {/* Comptes de démonstration */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 mb-3">Comptes de démonstration :</p>
-            <div className="space-y-2 text-xs">
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="font-medium text-gray-700">Admin</p>
-                <p className="text-gray-600">agence@demo.com / motdepasse</p>
-              </div>
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="font-medium text-gray-700">Client 1</p>
-                <p className="text-gray-600">client1@email.com / simple</p>
-              </div>
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="font-medium text-gray-700">Client 2</p>
-                <p className="text-gray-600">client2@email.com / simple</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

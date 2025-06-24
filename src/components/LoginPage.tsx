@@ -118,25 +118,6 @@ const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Comptes de démonstration */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 mb-3">Comptes de démonstration :</p>
-            <div className="space-y-2 text-xs">
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="font-medium text-gray-700">Admin</p>
-                <p className="text-gray-600">agence@demo.com / motdepasse</p>
-              </div>
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="font-medium text-gray-700">Client 1</p>
-                <p className="text-gray-600">client1@email.com / simple</p>
-              </div>
-              <div className="bg-gray-50 p-3 rounded-lg">
-                <p className="font-medium text-gray-700">Client 2</p>
-                <p className="text-gray-600">client2@email.com / simple</p>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>
