@@ -1,46 +1,36 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './contexts/AuthContext';
-import ProtectedRoute from './components/ProtectedRoute';
-import LoginPage from './components/LoginPage';
-import ClientPortal from './components/ClientPortal';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import Login from './components/Login';
 import AdminDashboard from './components/AdminDashboard';
+
+// Composant principal qui gère l'affichage selon l'état d'authentification
+const AppContent: React.FC = () => {
+  const { user, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si l'utilisateur n'est pas connecté, afficher le formulaire de login
+  if (!user) {
+    return <Login />;
+  }
+
+  // Si l'utilisateur est connecté, afficher le dashboard admin
+  return <AdminDashboard />;
+};
 
 function App() {
   return (
     <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Route publique de connexion */}
-          <Route path="/login" element={<LoginPage />} />
-          
-          {/* Routes protégées pour les clients */}
-          <Route 
-            path="/client" 
-            element={
-              <ProtectedRoute requiredRole="client">
-                <ClientPortal />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Routes protégées pour les admins */}
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedRoute requiredRole="admin">
-                <AdminDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          
-          {/* Redirection par défaut */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
-          
-          {/* Route catch-all pour les URLs non trouvées */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Router>
+      <AppContent />
     </AuthProvider>
   );
 }

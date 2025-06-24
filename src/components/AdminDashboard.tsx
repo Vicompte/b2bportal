@@ -38,10 +38,10 @@ const AdminDashboard: React.FC = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeDataTab, setActiveDataTab] = useState('factures');
-  const [uploadingPDF, setUploadingPDF] = useState<number | null>(null);
+  const [uploadingPdf, setUploadingPdf] = useState<number | null>(null);
   const [uploadMessage, setUploadMessage] = useState<{ type: 'success' | 'error', message: string } | null>(null);
   
-  const { currentUser, logout } = useAuth();
+  const { user, signOut } = useAuth();
 
   // Charger les clients
   useEffect(() => {
@@ -74,43 +74,38 @@ const AdminDashboard: React.FC = () => {
   };
 
   // Gestion de l'upload PDF
-  const handlePDFUpload = async (factureId: number, file: File) => {
+  const handlePdfUpload = async (factureId: number, file: File) => {
     if (!selectedClient) return;
 
-    setUploadingPDF(factureId);
+    setUploadingPdf(factureId);
     setUploadMessage(null);
 
     try {
       const { data, error, publicUrl } = await uploadFacturePDF(factureId.toString(), file);
-      
+
       if (error) {
-        throw new Error(error.message || 'Erreur lors de l\'upload');
+        setUploadMessage({ type: 'error', message: `Erreur lors de l'upload: ${error.message}` });
+        return;
       }
 
       if (publicUrl) {
         // Mettre à jour la facture avec l'URL du PDF
-        const updatedFactures = selectedClient.data?.factures?.map(f => 
-          f.id === factureId 
-            ? { ...f, pdfUrl: publicUrl, pdfFileName: file.name }
-            : f
-        ) || [];
-
         const updatedData = {
           ...selectedClient.data,
-          factures: updatedFactures
+          factures: selectedClient.data?.factures?.map((f: Facture) => 
+            f.id === factureId 
+              ? { ...f, pdfUrl: publicUrl, pdfFileName: file.name }
+              : f
+          ) || []
         };
 
         updateClientDataAndRefresh(selectedClient.id, updatedData);
-        setUploadMessage({ type: 'success', message: 'PDF uploadé avec succès !' });
+        setUploadMessage({ type: 'success', message: 'PDF uploadé avec succès!' });
       }
-    } catch (error) {
-      console.error('Erreur upload PDF:', error);
-      setUploadMessage({ 
-        type: 'error', 
-        message: error instanceof Error ? error.message : 'Erreur lors de l\'upload du PDF' 
-      });
+    } catch (err) {
+      setUploadMessage({ type: 'error', message: 'Erreur lors de l\'upload du PDF' });
     } finally {
-      setUploadingPDF(null);
+      setUploadingPdf(null);
       // Effacer le message après 3 secondes
       setTimeout(() => setUploadMessage(null), 3000);
     }
@@ -735,12 +730,12 @@ const AdminDashboard: React.FC = () => {
               />
               <div>
                 <h1 className="text-xl font-semibold">Dashboard Admin</h1>
-                <p className="text-purple-200 text-sm">Bienvenue {currentUser?.name}</p>
+                <p className="text-purple-200 text-sm">Bienvenue {user?.email}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={logout}
+                onClick={signOut}
                 className="flex items-center space-x-2 bg-red-500 px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
@@ -751,12 +746,14 @@ const AdminDashboard: React.FC = () => {
         </div>
       </header>
 
-      {/* Message d'upload */}
-      {uploadMessage && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-          uploadMessage.type === 'success' ? 'bg-green-500' : 'bg-red-500'
-        } text-white`}>
-          <div className="flex items-center space-x-2">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Message d'upload */}
+        {uploadMessage && (
+          <div className={`mb-4 p-4 rounded-lg flex items-center space-x-2 ${
+            uploadMessage.type === 'success' 
+              ? 'bg-green-50 text-green-800 border border-green-200' 
+              : 'bg-red-50 text-red-800 border border-red-200'
+          }`}>
             {uploadMessage.type === 'success' ? (
               <CheckCircle className="w-5 h-5" />
             ) : (
@@ -764,10 +761,8 @@ const AdminDashboard: React.FC = () => {
             )}
             <span>{uploadMessage.message}</span>
           </div>
-        </div>
-      )}
+        )}
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {!selectedClient ? (
           // Vue liste des clients
           <div>
@@ -955,18 +950,19 @@ const AdminDashboard: React.FC = () => {
                                     <p className="text-sm font-medium text-gray-700">PDF de la facture</p>
                                     {facture.pdfUrl ? (
                                       <div className="flex items-center space-x-2 mt-1">
-                                        <span className="text-xs text-green-600">✓ {facture.pdfFileName}</span>
+                                        <CheckCircle className="w-4 h-4 text-green-600" />
+                                        <span className="text-sm text-green-600">{facture.pdfFileName}</span>
                                         <a
                                           href={facture.pdfUrl}
                                           target="_blank"
                                           rel="noopener noreferrer"
-                                          className="text-xs text-blue-600 hover:underline"
+                                          className="text-blue-600 hover:text-blue-800"
                                         >
-                                          Voir le PDF
+                                          <Download className="w-4 h-4" />
                                         </a>
                                       </div>
                                     ) : (
-                                      <p className="text-xs text-gray-500 mt-1">Aucun PDF uploadé</p>
+                                      <p className="text-sm text-gray-500 mt-1">Aucun PDF uploadé</p>
                                     )}
                                   </div>
                                   <div className="flex items-center space-x-2">
@@ -976,24 +972,24 @@ const AdminDashboard: React.FC = () => {
                                       onChange={(e) => {
                                         const file = e.target.files?.[0];
                                         if (file) {
-                                          handlePDFUpload(facture.id, file);
+                                          handlePdfUpload(facture.id, file);
                                         }
                                       }}
                                       className="hidden"
                                       id={`pdf-upload-${facture.id}`}
-                                      disabled={uploadingPDF === facture.id}
+                                      disabled={uploadingPdf === facture.id}
                                     />
                                     <label
                                       htmlFor={`pdf-upload-${facture.id}`}
-                                      className={`cursor-pointer inline-flex items-center space-x-1 px-3 py-1 rounded text-xs font-medium transition-colors ${
-                                        uploadingPDF === facture.id
+                                      className={`cursor-pointer inline-flex items-center space-x-1 px-3 py-1 rounded-lg text-sm transition-colors ${
+                                        uploadingPdf === facture.id
                                           ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
                                           : 'bg-blue-600 text-white hover:bg-blue-700'
                                       }`}
                                     >
-                                      {uploadingPDF === facture.id ? (
+                                      {uploadingPdf === facture.id ? (
                                         <>
-                                          <div className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin"></div>
+                                          <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                           <span>Upload...</span>
                                         </>
                                       ) : (

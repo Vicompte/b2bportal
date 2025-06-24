@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User, authenticateUser, loadAuthData } from '../utils/authManager';
+import { User as SupabaseUser } from '@supabase/supabase-js';
+import { supabase } from '../utils/supabase';
 
 interface AuthContextType {
-  currentUser: User | null;
-  login: (username: string, password: string) => Promise<boolean>;
-  logout: () => void;
+  user: SupabaseUser | null;
   isLoading: boolean;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -23,51 +23,38 @@ interface AuthProviderProps {
 }
 
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Vérifier si un utilisateur est déjà connecté au chargement
   useEffect(() => {
-    const savedUser = localStorage.getItem('currentUser');
-    if (savedUser) {
-      try {
-        const user = JSON.parse(savedUser);
-        // Vérifier que l'utilisateur existe encore dans les données
-        const authData = loadAuthData();
-        const existingUser = authData.users.find(u => u.id === user.id);
-        if (existingUser) {
-          setCurrentUser(existingUser);
-        } else {
-          localStorage.removeItem('currentUser');
-        }
-      } catch (error) {
-        console.error('Erreur lors du chargement de l\'utilisateur:', error);
-        localStorage.removeItem('currentUser');
+    // Récupérer la session actuelle
+    const getSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setUser(session?.user ?? null);
+      setIsLoading(false);
+    };
+
+    getSession();
+
+    // Écouter les changements d'authentification
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        setUser(session?.user ?? null);
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
-    const user = authenticateUser(username, password);
-    if (user) {
-      setCurrentUser(user);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-      return true;
-    }
-    return false;
-  };
-
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('currentUser');
+  const signOut = async () => {
+    await supabase.auth.signOut();
   };
 
   const value = {
-    currentUser,
-    login,
-    logout,
-    isLoading
+    user,
+    isLoading,
+    signOut
   };
 
   return (

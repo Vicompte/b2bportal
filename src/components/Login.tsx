@@ -1,25 +1,33 @@
 import React, { useState } from 'react';
-import { User, Lock, AlertCircle } from 'lucide-react';
+import { User, Lock, AlertCircle, Loader2 } from 'lucide-react';
+import { supabase } from '../utils/supabase';
 
-interface LoginFormProps {
-  onLogin: (username: string, password: string) => void;
-  error?: string;
-}
-
-const LoginForm: React.FC<LoginFormProps> = ({ onLogin, error }) => {
-  const [username, setUsername] = useState('');
+const Login: React.FC = () => {
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+    setError('');
     
-    // Simuler un délai de connexion
-    setTimeout(() => {
-      onLogin(username, password);
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        setError(error.message);
+      }
+      // Si succès, l'utilisateur sera automatiquement redirigé via le AuthContext
+    } catch (err) {
+      setError('Une erreur est survenue lors de la connexion');
+    } finally {
       setIsLoading(false);
-    }, 500);
+    }
   };
 
   return (
@@ -34,7 +42,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, error }) => {
               className="h-20 w-auto object-contain"
             />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Portail Client</h1>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Portail Admin</h1>
           <p className="text-gray-600">Infinity Agency</p>
         </div>
 
@@ -42,7 +50,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, error }) => {
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
-              <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email
               </label>
               <div className="relative">
@@ -50,13 +58,14 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, error }) => {
                   <User className="h-5 w-5 text-gray-400" />
                 </div>
                 <input
-                  id="username"
+                  id="email"
                   type="email"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="votre@email.com"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -77,6 +86,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, error }) => {
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="••••••••"
                   required
+                  disabled={isLoading}
                 />
               </div>
             </div>
@@ -95,7 +105,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, error }) => {
             >
               {isLoading ? (
                 <div className="flex items-center justify-center space-x-2">
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  <Loader2 className="w-4 h-4 animate-spin" />
                   <span>Connexion...</span>
                 </div>
               ) : (
@@ -109,4 +119,4 @@ const LoginForm: React.FC<LoginFormProps> = ({ onLogin, error }) => {
   );
 };
 
-export default LoginForm;
+export default Login;
