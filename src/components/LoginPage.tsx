@@ -1,15 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { User, Lock, AlertCircle, RefreshCw } from 'lucide-react';
+import { User, Lock, AlertCircle } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
-import { resetAuthData } from '../utils/authManager';
 
 const LoginPage: React.FC = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [showReset, setShowReset] = useState(false);
   
   const { currentUser, login } = useAuth();
   const location = useLocation();
@@ -29,23 +27,12 @@ const LoginPage: React.FC = () => {
       const success = await login(username, password);
       if (!success) {
         setError('Email ou mot de passe incorrect');
-        setShowReset(true);
       }
     } catch (err) {
       setError('Une erreur est survenue lors de la connexion');
-      setShowReset(true);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleReset = () => {
-    resetAuthData();
-    setError('');
-    setShowReset(false);
-    setUsername('');
-    setPassword('');
-    alert('Données réinitialisées. Utilisez les identifiants : contact@infinityagency.be / InfinityAgency1812**');
   };
 
   return (
@@ -81,7 +68,7 @@ const LoginPage: React.FC = () => {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                  placeholder="contact@infinityagency.be"
+                  placeholder="votre@email.com"
                   required
                   disabled={isLoading}
                 />
@@ -102,7 +89,7 @@ const LoginPage: React.FC = () => {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
-                  placeholder="InfinityAgency1812**"
+                  placeholder="••••••••"
                   required
                   disabled={isLoading}
                 />
@@ -113,22 +100,6 @@ const LoginPage: React.FC = () => {
               <div className="flex items-center space-x-2 text-red-600 bg-red-50 p-3 rounded-lg">
                 <AlertCircle className="w-5 h-5 flex-shrink-0" />
                 <span className="text-sm">{error}</span>
-              </div>
-            )}
-
-            {showReset && (
-              <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
-                <p className="text-sm text-yellow-800 mb-2">
-                  Problème de connexion ? Cliquez pour réinitialiser les données :
-                </p>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="inline-flex items-center space-x-1 text-sm text-yellow-700 hover:text-yellow-900"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                  <span>Réinitialiser</span>
-                </button>
               </div>
             )}
 
@@ -147,16 +118,6 @@ const LoginPage: React.FC = () => {
               )}
             </button>
           </form>
-
-          {/* Identifiants de démonstration */}
-          <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 mb-3">Identifiants Admin :</p>
-            <div className="bg-gray-50 p-3 rounded-lg">
-              <p className="font-medium text-gray-700">Administrateur</p>
-              <p className="text-gray-600 text-sm">contact@infinityagency.be</p>
-              <p className="text-gray-600 text-sm">InfinityAgency1812**</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>
