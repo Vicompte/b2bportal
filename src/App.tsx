@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileText, 
   Video, 
@@ -11,175 +11,20 @@ import {
   ExternalLink,
   Settings
 } from 'lucide-react';
-import AdminPanel from './components/AdminPanel';
-
-// Types
-interface Facture {
-  id: number;
-  numero: string;
-  date: string;
-  montant: number;
-  statut: 'payee' | 'en_attente';
-  description: string;
-}
-
-interface Contenu {
-  id: number;
-  nom: string;
-  lien: string;
-  date: string;
-  type: string;
-}
-
-interface Credential {
-  id: number;
-  service: string;
-  username: string;
-  password: string;
-  url: string;
-}
-
-interface Rapport {
-  id: number;
-  nom: string;
-  lien: string;
-  date: string;
-  type: string;
-}
-
-// Données de démonstration
-const clientData = {
-  name: 'Martin Dubois',
-  company: 'TechStart Innovation',
-  factures: [
-    {
-      id: 1,
-      numero: 'FAC-2025-001',
-      date: '2025-01-15',
-      montant: 3500,
-      statut: 'payee' as const,
-      description: 'Développement site web e-commerce'
-    },
-    {
-      id: 2,
-      numero: 'FAC-2025-002',
-      date: '2025-02-01',
-      montant: 1200,
-      statut: 'en_attente' as const,
-      description: 'Maintenance et SEO mensuel'
-    },
-    {
-      id: 3,
-      numero: 'FAC-2025-003',
-      date: '2025-02-15',
-      montant: 2800,
-      statut: 'payee' as const,
-      description: 'Campagne publicitaire Google Ads'
-    },
-    {
-      id: 4,
-      numero: 'FAC-2025-004',
-      date: '2025-03-01',
-      montant: 4200,
-      statut: 'en_attente' as const,
-      description: 'Refonte identité visuelle complète'
-    }
-  ] as Facture[],
-  contenus: [
-    {
-      id: 1,
-      nom: 'Vidéos Promotionnelles Q1 2025',
-      lien: 'https://drive.google.com/drive/folders/1ABCDefGHijKLMnOPqrsTUVwxyz123456',
-      date: '2025-01-20',
-      type: 'video'
-    },
-    {
-      id: 2,
-      nom: 'Photos Produits E-commerce',
-      lien: 'https://drive.google.com/drive/folders/2ABCDefGHijKLMnOPqrsTUVwxyz123456',
-      date: '2025-02-05',
-      type: 'photo'
-    },
-    {
-      id: 3,
-      nom: 'Bannières Publicitaires Facebook',
-      lien: 'https://drive.google.com/drive/folders/3ABCDefGHijKLMnOPqrsTUVwxyz123456',
-      date: '2025-02-18',
-      type: 'design'
-    },
-    {
-      id: 4,
-      nom: 'Logo et Charte Graphique',
-      lien: 'https://drive.google.com/drive/folders/4ABCDefGHijKLMnOPqrsTUVwxyz123456',
-      date: '2025-03-02',
-      type: 'branding'
-    }
-  ] as Contenu[],
-  credentials: [
-    {
-      id: 1,
-      service: 'WordPress Admin',
-      username: 'admin@techstart-innovation.com',
-      password: 'SecureWP2025!',
-      url: 'https://techstart-innovation.com/wp-admin'
-    },
-    {
-      id: 2,
-      service: 'Google Analytics',
-      username: 'analytics@techstart-innovation.com',
-      password: 'Analytics@2025',
-      url: 'https://analytics.google.com'
-    },
-    {
-      id: 3,
-      service: 'Search Console',
-      username: 'webmaster@techstart-innovation.com',
-      password: 'Console#2025',
-      url: 'https://search.google.com/search-console'
-    },
-    {
-      id: 4,
-      service: 'Facebook Business',
-      username: 'social@techstart-innovation.com',
-      password: 'Facebook$2025',
-      url: 'https://business.facebook.com'
-    }
-  ] as Credential[],
-  rapports: [
-    {
-      id: 1,
-      nom: 'Rapport SEO - Janvier 2025',
-      lien: 'https://drive.google.com/file/d/1ABCDefGHijKLMnOPqrsTUVwxyz123456/view',
-      date: '2025-01-31',
-      type: 'seo'
-    },
-    {
-      id: 2,
-      nom: 'Analyse Performance Site - Février',
-      lien: 'https://drive.google.com/file/d/2ABCDefGHijKLMnOPqrsTUVwxyz123456/view',
-      date: '2025-02-28',
-      type: 'performance'
-    },
-    {
-      id: 3,
-      nom: 'Rapport Campagne Google Ads',
-      lien: 'https://drive.google.com/file/d/3ABCDefGHijKLMnOPqrsTUVwxyz123456/view',
-      date: '2025-03-05',
-      type: 'ads'
-    },
-    {
-      id: 4,
-      nom: 'Audit Sécurité Complet',
-      lien: 'https://drive.google.com/file/d/4ABCDefGHijKLMnOPqrsTUVwxyz123456/view',
-      date: '2025-03-15',
-      type: 'security'
-    }
-  ] as Rapport[]
-};
+import { AdminPanel } from './components';
+import { loadClientData, ClientData, Facture, Contenu, Credential, Rapport } from './utils/clientDataManager';
 
 function App() {
   const [activeTab, setActiveTab] = useState('factures');
   const [showAdmin, setShowAdmin] = useState(false);
+  const [clientData, setClientData] = useState<ClientData>(() => loadClientData());
+
+  // Recharger les données depuis localStorage quand on revient du mode admin
+  useEffect(() => {
+    if (!showAdmin) {
+      setClientData(loadClientData());
+    }
+  }, [showAdmin]);
 
   // Si on est en mode admin, afficher le panel admin
   if (showAdmin) {
