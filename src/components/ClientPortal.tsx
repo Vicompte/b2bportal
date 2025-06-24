@@ -9,7 +9,8 @@ import {
   Euro,
   Copy,
   ExternalLink,
-  LogOut
+  LogOut,
+  Download
 } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import { ClientData, Facture, Contenu, Credential, Rapport } from '../utils/clientDataManager';
@@ -224,6 +225,9 @@ const ClientPortal: React.FC = () => {
               <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                 Statut
               </th>
+              <th className="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                PDF
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -256,6 +260,24 @@ const ClientPortal: React.FC = () => {
                     )}
                     <span>{facture.statut === 'payee' ? 'Payée' : 'En attente'}</span>
                   </span>
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap">
+                  {facture.pdfUrl ? (
+                    <a
+                      href={facture.pdfUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center space-x-1 px-3 py-1 bg-blue-600 text-white text-xs rounded-lg hover:bg-blue-700 transition-colors"
+                      title={`Télécharger ${facture.pdfFileName || 'la facture'}`}
+                    >
+                      <Download className="w-3 h-3" />
+                      <span>PDF</span>
+                    </a>
+                  ) : (
+                    <span className="inline-flex items-center px-3 py-1 bg-gray-100 text-gray-500 text-xs rounded-lg">
+                      Non disponible
+                    </span>
+                  )}
                 </td>
               </tr>
             ))}

@@ -20,6 +20,18 @@ export interface AuthState {
   users: User[];
 }
 
+// Interface pour les factures avec PDF
+export interface Facture {
+  id: number;
+  numero: string;
+  date: string;
+  montant: number;
+  statut: 'payee' | 'en_attente';
+  description: string;
+  pdfUrl?: string;
+  pdfFileName?: string;
+}
+
 // Données par défaut des utilisateurs - SEUL ADMIN
 const defaultUsers: User[] = [
   {
