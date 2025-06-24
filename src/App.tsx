@@ -47,7 +47,7 @@ interface Rapport {
   type: string;
 }
 
-// Données de démonstration - Modifiez ces données selon vos besoins
+// Données de démonstration
 const clientData = {
   name: 'Martin Dubois',
   company: 'TechStart Innovation',
@@ -181,6 +181,11 @@ function App() {
   const [activeTab, setActiveTab] = useState('factures');
   const [showAdmin, setShowAdmin] = useState(false);
 
+  // Si on est en mode admin, afficher le panel admin
+  if (showAdmin) {
+    return <AdminPanel onBackToClient={() => setShowAdmin(false)} />;
+  }
+
   // Calculs des statistiques
   const totalFactures = clientData.factures.length;
   const facturesPayees = clientData.factures.filter(f => f.statut === 'payee').length;
@@ -213,11 +218,6 @@ function App() {
     }
   };
 
-  // Si on est en mode admin, afficher le panel admin
-  if (showAdmin) {
-    return <AdminPanel onBackToClient={() => setShowAdmin(false)} />;
-  }
-
   // Composant Header
   const Header = () => (
     <header className="bg-white border-b border-gray-200 shadow-sm">
@@ -233,17 +233,18 @@ function App() {
             </div>
           </div>
           <div className="flex items-center space-x-4">
-            <button
-              onClick={() => setShowAdmin(true)}
-              className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              <Settings className="w-4 h-4" />
-              <span className="hidden sm:inline">Admin</span>
-            </button>
             <div className="text-right">
               <p className="text-sm text-gray-500">Portail Client</p>
               <p className="text-lg font-semibold text-blue-600">Agence Digitale</p>
             </div>
+            <button
+              onClick={() => setShowAdmin(true)}
+              className="flex items-center space-x-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition-colors duration-200"
+              title="Accès Administration"
+            >
+              <Settings className="w-4 h-4" />
+              <span className="hidden sm:inline">Admin</span>
+            </button>
           </div>
         </div>
       </div>
