@@ -14,13 +14,17 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
 
+  console.log('🔍 AdminLogin render - User:', user?.email || 'Aucun', 'AuthLoading:', authLoading);
+
   // 1. Redirection automatique si utilisateur déjà connecté
   useEffect(() => {
     if (!authLoading && user) {
-      console.log('Utilisateur déjà connecté, redirection automatique...');
+      console.log('✅ Utilisateur déjà connecté, redirection automatique...');
       if (user.email === 'contact@infinityagency.be') {
+        console.log('🔄 Redirection admin vers /admin');
         navigate('/admin', { replace: true });
       } else {
+        console.log('🔄 Redirection client vers /client');
         navigate('/client', { replace: true });
       }
     }
@@ -29,35 +33,39 @@ const Login: React.FC = () => {
   // 2. Tester la connexion Supabase au chargement
   useEffect(() => {
     const checkConnection = async () => {
+      console.log('🔍 Test de connexion Supabase...');
       const isConnected = await testSupabaseConnection();
+      console.log('📡 Connexion Supabase:', isConnected ? 'OK' : 'ERREUR');
       setConnectionStatus(isConnected ? 'connected' : 'error');
     };
     
     checkConnection();
   }, []);
 
-  // 3. Handler de connexion avec redirection immédiate et systématique
+  // 3. Handler de connexion avec logs détaillés
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError('');
     
     try {
-      console.log('Tentative de connexion admin pour:', email);
+      console.log('🔐 Tentative de connexion admin pour:', email);
+      console.log('🔍 Navigate function type:', typeof navigate);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      console.log('Résultat connexion admin:', { 
+      console.log('📊 Résultat connexion admin:', { 
         success: !error, 
         userEmail: data?.user?.email,
+        userId: data?.user?.id,
         error: error?.message 
       });
 
       if (error) {
-        console.error('Erreur de connexion admin:', error);
+        console.error('❌ Erreur de connexion admin:', error);
         
         // Messages d'erreur plus explicites
         let errorMessage = error.message;
@@ -79,6 +87,8 @@ const Login: React.FC = () => {
       // ✅ CONNEXION RÉUSSIE - VÉRIFICATION ADMIN ET REDIRECTION
       if (data.user) {
         console.log('✅ Connexion réussie pour:', data.user.email);
+        console.log('🔍 Session Supabase:', data.session ? 'Présente' : 'Absente');
+        console.log('🔍 User data:', data.user);
         
         // Vérifier que c'est bien l'admin
         if (data.user.email !== 'contact@infinityagency.be') {
@@ -92,6 +102,8 @@ const Login: React.FC = () => {
         // Redirection immédiate pour l'admin
         console.log('🔄 Redirection admin vers /admin');
         navigate('/admin', { replace: true });
+        
+        // Note: On ne met pas setIsLoading(false) ici car la redirection va se faire
       } else {
         console.error('❌ Pas d\'utilisateur dans la réponse');
         setError('Erreur de connexion - aucun utilisateur retourné');
@@ -102,7 +114,6 @@ const Login: React.FC = () => {
       setError('Une erreur est survenue lors de la connexion');
       setIsLoading(false);
     }
-    // Note: setIsLoading(false) n'est pas appelé en cas de succès car la redirection se fait immédiatement
   };
 
   // Afficher un loader si l'auth est en cours de chargement

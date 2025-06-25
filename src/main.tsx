@@ -5,6 +5,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import App from './App.tsx';
 import './index.css';
 
+console.log('🚀 Application démarrée - main.tsx');
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <BrowserRouter>

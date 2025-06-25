@@ -33,6 +33,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     let mounted = true;
 
+    console.log('🔍 AuthProvider - Initialisation...');
+
     // Récupérer la session actuelle
     const getSession = async () => {
       try {
@@ -53,8 +55,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           if (isOnLoginPage) {
             console.log('🔄 Redirection automatique depuis session existante...');
             if (session.user.email === 'contact@infinityagency.be') {
+              console.log('🔄 Redirection admin vers /admin');
               navigate('/admin', { replace: true });
             } else {
+              console.log('🔄 Redirection client vers /client');
               navigate('/client', { replace: true });
             }
           }
@@ -66,7 +70,10 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('❌ Erreur générale getSession:', err);
         if (mounted) setUser(null);
       } finally {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          console.log('✅ AuthProvider - Chargement terminé');
+          setIsLoading(false);
+        }
       }
     };
 
@@ -77,37 +84,39 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       async (event, session) => {
         if (!mounted) return;
 
-        console.log('🔄 Auth state change:', event, session?.user?.email || 'Aucun utilisateur');
+        console.log('🔄 Auth state change:', event, 'User:', session?.user?.email || 'Aucun utilisateur');
         
         setUser(session?.user ?? null);
         
         // Gérer les redirections selon l'événement
         if (event === 'SIGNED_IN' && session?.user) {
-          console.log('✅ SIGNED_IN détecté, redirection...');
-          setIsLoading(false);
+          console.log('✅ SIGNED_IN détecté pour:', session.user.email);
           
-          // Redirection immédiate selon l'email
-          if (session.user.email === 'contact@infinityagency.be') {
-            console.log('🔄 Redirection admin vers /admin');
-            navigate('/admin', { replace: true });
-          } else {
-            console.log('🔄 Redirection client vers /client');
-            navigate('/client', { replace: true });
-          }
+          // Attendre un court délai pour s'assurer que l'état est mis à jour
+          setTimeout(() => {
+            if (session.user.email === 'contact@infinityagency.be') {
+              console.log('🔄 Redirection admin vers /admin');
+              navigate('/admin', { replace: true });
+            } else {
+              console.log('🔄 Redirection client vers /client');
+              navigate('/client', { replace: true });
+            }
+          }, 100);
+          
         } else if (event === 'SIGNED_OUT') {
           console.log('🚪 SIGNED_OUT détecté, redirection vers login...');
-          setIsLoading(false);
           navigate('/client/login', { replace: true });
         } else if (event === 'TOKEN_REFRESHED') {
-          console.log('🔄 Token rafraîchi');
-          setIsLoading(false);
-        } else {
-          setIsLoading(false);
+          console.log('🔄 Token rafraîchi pour:', session?.user?.email);
         }
+        
+        // Toujours arrêter le loading après un événement d'auth
+        setIsLoading(false);
       }
     );
 
     return () => {
+      console.log('🧹 AuthProvider - Nettoyage...');
       mounted = false;
       subscription.unsubscribe();
     };
@@ -138,6 +147,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     isLoading,
     signOut
   };
+
+  console.log('🔍 AuthProvider render - User:', user?.email || 'Aucun', 'Loading:', isLoading);
 
   return (
     <AuthContext.Provider value={value}>
