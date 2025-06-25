@@ -14,7 +14,10 @@ import {
   Calendar,
   CheckCircle,
   Clock,
-  Eye
+  Eye,
+  TrendingUp,
+  CreditCard,
+  DollarSign
 } from 'lucide-react';
 import { supabase, listUserFactureFiles, getFacturePublicUrl } from '../lib/supabase';
 import { useAuth } from '../providers/AuthProvider';
@@ -27,13 +30,30 @@ interface FactureFolder {
   pdfUrl?: string;
 }
 
+interface DashboardStats {
+  totalFactures: number;
+  facturesPayees: number;
+  facturesEnAttente: number;
+  montantTotal: number;
+  montantPaye: number;
+  montantEnAttente: number;
+}
+
 const ClientPortal: React.FC = () => {
   const { user, signOut } = useAuth();
-  const [activeTab, setActiveTab] = useState('factures');
+  const [activeTab, setActiveTab] = useState('dashboard');
   const [factures, setFactures] = useState<FactureFolder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [clientData, setClientData] = useState<any>(null);
+  const [dashboardStats, setDashboardStats] = useState<DashboardStats>({
+    totalFactures: 0,
+    facturesPayees: 0,
+    facturesEnAttente: 0,
+    montantTotal: 0,
+    montantPaye: 0,
+    montantEnAttente: 0
+  });
 
   console.log('🔍 ClientPortal - User:', user?.email || 'Aucun');
 
@@ -51,6 +71,28 @@ const ClientPortal: React.FC = () => {
       }
     }
   }, [user?.id]);
+
+  // Calculer les statistiques du dashboard
+  useEffect(() => {
+    if (clientData?.factures) {
+      const factures = clientData.factures;
+      
+      const stats: DashboardStats = {
+        totalFactures: factures.length,
+        facturesPayees: factures.filter((f: any) => f.statut === 'payee').length,
+        facturesEnAttente: factures.filter((f: any) => f.statut === 'en_attente').length,
+        montantTotal: factures.reduce((total: number, f: any) => total + f.montant, 0),
+        montantPaye: factures
+          .filter((f: any) => f.statut === 'payee')
+          .reduce((total: number, f: any) => total + f.montant, 0),
+        montantEnAttente: factures
+          .filter((f: any) => f.statut === 'en_attente')
+          .reduce((total: number, f: any) => total + f.montant, 0)
+      };
+      
+      setDashboardStats(stats);
+    }
+  }, [clientData]);
 
   // Récupérer les factures PDF depuis Supabase
   useEffect(() => {
@@ -159,6 +201,192 @@ const ClientPortal: React.FC = () => {
 
   const clientName = user?.user_metadata?.name || user?.email || 'Client';
 
+  // Composant Dashboard Stats
+  const DashboardSection = () => (
+    <div>
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">Tableau de Bord</h2>
+      
+      {/* Cartes de statistiques */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        {/* Total des factures */}
+        <div className="bg-gradient-to-r from-blue-500 to-blue-600 rounded-xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-blue-100 text-sm font-medium">Total Factures</p>
+              <p className="text-3xl font-bold">{dashboardStats.totalFactures}</p>
+            </div>
+            <div className="w-12 h-12 bg-blue-400 bg-opacity-30 rounded-lg flex items-center justify-center">
+              <FileText className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Factures payées */}
+        <div className="bg-gradient-to-r from-green-500 to-green-600 rounded-xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-green-100 text-sm font-medium">Factures Payées</p>
+              <p className="text-3xl font-bold">{dashboardStats.facturesPayees}</p>
+            </div>
+            <div className="w-12 h-12 bg-green-400 bg-opacity-30 rounded-lg flex items-center justify-center">
+              <CheckCircle className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Factures en attente */}
+        <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-orange-100 text-sm font-medium">En Attente</p>
+              <p className="text-3xl font-bold">{dashboardStats.facturesEnAttente}</p>
+            </div>
+            <div className="w-12 h-12 bg-orange-400 bg-opacity-30 rounded-lg flex items-center justify-center">
+              <Clock className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Montant total */}
+        <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-purple-100 text-sm font-medium">Montant Total</p>
+              <p className="text-2xl font-bold">{formatMontant(dashboardStats.montantTotal)}</p>
+            </div>
+            <div className="w-12 h-12 bg-purple-400 bg-opacity-30 rounded-lg flex items-center justify-center">
+              <TrendingUp className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Montant payé */}
+        <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-emerald-100 text-sm font-medium">Montant Payé</p>
+              <p className="text-2xl font-bold">{formatMontant(dashboardStats.montantPaye)}</p>
+            </div>
+            <div className="w-12 h-12 bg-emerald-400 bg-opacity-30 rounded-lg flex items-center justify-center">
+              <CreditCard className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Montant en attente */}
+        <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-red-100 text-sm font-medium">Montant En Attente</p>
+              <p className="text-2xl font-bold">{formatMontant(dashboardStats.montantEnAttente)}</p>
+            </div>
+            <div className="w-12 h-12 bg-red-400 bg-opacity-30 rounded-lg flex items-center justify-center">
+              <DollarSign className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Résumé rapide */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <h3 className="text-lg font-semibold text-gray-900 mb-4">Résumé Financier</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Progression des paiements */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium text-gray-700">Progression des Paiements</span>
+              <span className="text-sm text-gray-500">
+                {dashboardStats.totalFactures > 0 
+                  ? Math.round((dashboardStats.facturesPayees / dashboardStats.totalFactures) * 100)
+                  : 0}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className="bg-gradient-to-r from-green-500 to-green-600 h-3 rounded-full transition-all duration-300"
+                style={{ 
+                  width: dashboardStats.totalFactures > 0 
+                    ? `${(dashboardStats.facturesPayees / dashboardStats.totalFactures) * 100}%`
+                    : '0%'
+                }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>{dashboardStats.facturesPayees} payées</span>
+              <span>{dashboardStats.facturesEnAttente} en attente</span>
+            </div>
+          </div>
+
+          {/* Répartition des montants */}
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <span className="text-sm font-medium text-gray-700">Répartition des Montants</span>
+              <span className="text-sm text-gray-500">
+                {dashboardStats.montantTotal > 0 
+                  ? Math.round((dashboardStats.montantPaye / dashboardStats.montantTotal) * 100)
+                  : 0}%
+              </span>
+            </div>
+            <div className="w-full bg-gray-200 rounded-full h-3">
+              <div 
+                className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-300"
+                style={{ 
+                  width: dashboardStats.montantTotal > 0 
+                    ? `${(dashboardStats.montantPaye / dashboardStats.montantTotal) * 100}%`
+                    : '0%'
+                }}
+              ></div>
+            </div>
+            <div className="flex justify-between text-xs text-gray-500 mt-1">
+              <span>{formatMontant(dashboardStats.montantPaye)} payé</span>
+              <span>{formatMontant(dashboardStats.montantEnAttente)} en attente</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Factures récentes */}
+      {clientData?.factures && clientData.factures.length > 0 && (
+        <div className="mt-8 bg-white border border-gray-200 rounded-xl p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Factures Récentes</h3>
+          <div className="space-y-3">
+            {clientData.factures
+              .sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())
+              .slice(0, 3)
+              .map((facture: any) => (
+                <div key={facture.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <div className={`w-3 h-3 rounded-full ${
+                      facture.statut === 'payee' ? 'bg-green-500' : 'bg-orange-500'
+                    }`}></div>
+                    <div>
+                      <p className="font-medium text-gray-900">{facture.numero}</p>
+                      <p className="text-sm text-gray-500">{formatDate(facture.date)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-semibold text-gray-900">{formatMontant(facture.montant)}</p>
+                    <p className={`text-xs ${
+                      facture.statut === 'payee' ? 'text-green-600' : 'text-orange-600'
+                    }`}>
+                      {facture.statut === 'payee' ? 'Payée' : 'En attente'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+          </div>
+          <button
+            onClick={() => setActiveTab('factures')}
+            className="mt-4 w-full text-center text-blue-600 hover:text-blue-700 text-sm font-medium"
+          >
+            Voir toutes les factures →
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
@@ -198,6 +426,7 @@ const ClientPortal: React.FC = () => {
         {/* Navigation tabs */}
         <nav className="flex flex-wrap gap-1 mb-6">
           {[
+            { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
             { id: 'factures', label: 'Factures', icon: FileText },
             { id: 'contenus', label: 'Contenus', icon: Video },
             { id: 'credentials', label: 'Identifiants', icon: Key },
@@ -223,6 +452,9 @@ const ClientPortal: React.FC = () => {
 
         {/* Contenu des onglets */}
         <div className="bg-white rounded-lg shadow-sm p-6">
+          {/* Section Dashboard */}
+          {activeTab === 'dashboard' && <DashboardSection />}
+
           {/* Section Factures */}
           {activeTab === 'factures' && (
             <div>
