@@ -29,9 +29,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Récupérer la session actuelle
     const getSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setIsLoading(false);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('Erreur lors de la récupération de la session:', error);
+        } else {
+          console.log('Session récupérée:', session?.user?.email || 'Aucune session');
+          setUser(session?.user ?? null);
+        }
+      } catch (err) {
+        console.error('Erreur générale getSession:', err);
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     getSession();
@@ -39,6 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
+        console.log('Auth state change:', event, session?.user?.email || 'Aucun utilisateur');
         setUser(session?.user ?? null);
         setIsLoading(false);
       }
@@ -48,7 +60,17 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }, []);
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    try {
+      console.log('Déconnexion en cours...');
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Erreur lors de la déconnexion:', error);
+      } else {
+        console.log('Déconnexion réussie');
+      }
+    } catch (err) {
+      console.error('Erreur générale signOut:', err);
+    }
   };
 
   const value = {

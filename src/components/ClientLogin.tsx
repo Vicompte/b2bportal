@@ -1,12 +1,23 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { User, Lock, AlertCircle, Loader2 } from 'lucide-react';
-import { supabase } from '../utils/supabase';
+import { supabase, testSupabaseConnection } from '../utils/supabase';
 
 const ClientLogin: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+
+  // Tester la connexion Supabase au chargement
+  useEffect(() => {
+    const checkConnection = async () => {
+      const isConnected = await testSupabaseConnection();
+      setConnectionStatus(isConnected ? 'connected' : 'error');
+    };
+    
+    checkConnection();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -14,16 +25,24 @@ const ClientLogin: React.FC = () => {
     setError('');
     
     try {
+      console.log('Tentative de connexion pour:', email);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
+      console.log('Résultat connexion:', { data, error });
+
       if (error) {
+        console.error('Erreur de connexion:', error);
         setError(error.message);
+      } else if (data.user) {
+        console.log('Connexion réussie pour:', data.user.email);
+        // La redirection sera gérée par le AuthContext
       }
-      // Si succès, l'utilisateur sera automatiquement redirigé via le AuthContext
     } catch (err) {
+      console.error('Erreur générale:', err);
       setError('Une erreur est survenue lors de la connexion');
     } finally {
       setIsLoading(false);
@@ -40,11 +59,43 @@ const ClientLogin: React.FC = () => {
               src="/IMG_0214.PNG" 
               alt="Infinity Agency Logo" 
               className="h-20 w-auto object-contain"
+              onError={(e) => {
+                console.error('Erreur de chargement du logo');
+                e.currentTarget.style.display = 'none';
+              }}
             />
           </div>
           <h1 className="text-2xl font-bold text-gray-900 mb-2">Portail Client</h1>
           <p className="text-gray-600">Infinity Agency</p>
         </div>
+
+        {/* Status de connexion Supabase */}
+        {connectionStatus === 'checking' && (
+          <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="flex items-center space-x-2 text-yellow-600">
+              <Loader2 className="w-4 h-4 animate-spin" />
+              <span className="text-sm">Vérification de la connexion...</span>
+            </div>
+          </div>
+        )}
+
+        {connectionStatus === 'error' && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+            <div className="flex items-center space-x-2 text-red-600">
+              <AlertCircle className="w-4 h-4" />
+              <span className="text-sm">Problème de connexion au serveur</span>
+            </div>
+          </div>
+        )}
+
+        {connectionStatus === 'connected' && (
+          <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center space-x-2 text-green-600">
+              <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+              <span className="text-sm">Connexion au serveur établie</span>
+            </div>
+          </div>
+        )}
 
         {/* Formulaire de connexion */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
@@ -65,7 +116,7 @@ const ClientLogin: React.FC = () => {
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="votre@email.com"
                   required
-                  disabled={isLoading}
+                  disabled={isLoading || connectionStatus !== 'connected'}
                 />
               </div>
             </div>
@@ -86,7 +137,7 @@ const ClientLogin: React.FC = () => {
                   className="block w-full pl-10 pr-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-colors"
                   placeholder="••••••••"
                   required
-                  disabled={isLoading}
+                  disabled={isLoading || connectionStatus !== 'connected'}
                 />
               </div>
             </div>
@@ -100,7 +151,7 @@ const ClientLogin: React.FC = () => {
 
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || connectionStatus !== 'connected'}
               className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isLoading ? (
