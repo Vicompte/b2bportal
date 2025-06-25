@@ -16,26 +16,18 @@ import {
   Shield,
   Upload,
   Download,
-  CheckCircle,
-  AlertCircle,
-  Loader2
+  AlertCircle
 } from 'lucide-react';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../providers/AuthProvider';
+import { supabase, uploadFacturePDF, getFacturePublicUrl } from '../lib/supabase';
 import { 
   User,
   getAllClients,
   updateClientData,
   addClient,
   deleteClient,
-  updateClientSupabaseId,
-  Facture
+  updateClientSupabaseId
 } from '../utils/authManager';
-import { 
-  uploadFacturePDF, 
-  getFacturePublicUrl, 
-  checkFacturePDFExists,
-  createClientUser
-} from '../utils/supabase';
 
 const AdminDashboard: React.FC = () => {
   const [activeTab, setActiveTab] = useState('clients');
@@ -45,38 +37,16 @@ const AdminDashboard: React.FC = () => {
   const [editingItem, setEditingItem] = useState<any>(null);
   const [showAddForm, setShowAddForm] = useState(false);
   const [activeDataTab, setActiveDataTab] = useState('factures');
-  const [uploadingPDF, setUploadingPDF] = useState<{ [key: number]: boolean }>({});
-  const [pdfStatus, setPdfStatus] = useState<{ [key: number]: { exists: boolean; loading: boolean } }>({});
+  const [uploadingPDF, setUploadingPDF] = useState<string | null>(null);
   
-  const { signOut } = useAuth();
+  const { user: supabaseUser, signOut } = useAuth();
+
+  console.log('🔍 AdminDashboard - Supabase User:', supabaseUser?.email || 'Aucun');
 
   // Charger les clients
   useEffect(() => {
     setClients(getAllClients());
   }, []);
-
-  // Vérifier l'existence des PDFs pour les factures du client sélectionné
-  useEffect(() => {
-    if (selectedClient && selectedClient.data?.factures) {
-      checkPDFsExistence();
-    }
-  }, [selectedClient]);
-
-  const checkPDFsExistence = async () => {
-    if (!selectedClient?.data?.factures || !selectedClient.supabaseUserId) return;
-
-    const newPdfStatus: { [key: number]: { exists: boolean; loading: boolean } } = {};
-    
-    for (const facture of selectedClient.data.factures) {
-      newPdfStatus[facture.id] = { exists: false, loading: true };
-      setPdfStatus(prev => ({ ...prev, [facture.id]: { exists: false, loading: true } }));
-      
-      const exists = await checkFacturePDFExists(selectedClient.supabaseUserId, facture.id.toString());
-      newPdfStatus[facture.id] = { exists, loading: false };
-    }
-    
-    setPdfStatus(newPdfStatus);
-  };
 
   // Recharger les clients après modification
   const refreshClients = () => {
@@ -103,97 +73,161 @@ const AdminDashboard: React.FC = () => {
     }).format(montant);
   };
 
-  // Gestion de l'upload PDF
-  const handlePDFUpload = async (factureId: number, file: File) => {
-    if (!selectedClient?.supabaseUserId) {
-      alert('Erreur: ID utilisateur Supabase manquant');
-      return;
-    }
-
-    setUploadingPDF(prev => ({ ...prev, [factureId]: true }));
-
-    try {
-      const { data, error, publicUrl } = await uploadFacturePDF(
-        selectedClient.supabaseUserId,
-        factureId.toString(),
-        file
-      );
-
-      if (error) {
-        console.error('Erreur upload:', error);
-        alert('Erreur lors de l\'upload du PDF');
-        return;
-      }
-
-      // Mettre à jour la facture avec l'URL du PDF
-      const updatedData = {
-        ...selectedClient.data,
-        factures: selectedClient.data?.factures?.map(f => 
-          f.id === factureId 
-            ? { ...f, pdfUrl: publicUrl, pdfFileName: file.name, hasPDF: true }
-            : f
-        ) || []
-      };
-
-      updateClientDataAndRefresh(selectedClient.id, updatedData);
-      
-      // Mettre à jour le statut PDF
-      setPdfStatus(prev => ({ 
-        ...prev, 
-        [factureId]: { exists: true, loading: false } 
-      }));
-
-      alert('PDF uploadé avec succès !');
-    } catch (error) {
-      console.error('Erreur:', error);
-      alert('Erreur lors de l\'upload du PDF');
-    } finally {
-      setUploadingPDF(prev => ({ ...prev, [factureId]: false }));
-    }
-  };
-
-  // Gestion des clients
+  // Gestion des clients avec Supabase
   const handleAddClient = async (clientData: any) => {
     try {
+      console.log('🔄 Création client Supabase:', clientData.username);
+      
       // Créer l'utilisateur dans Supabase Auth
-      const { data: supabaseUser, error } = await createClientUser(
-        clientData.username,
-        clientData.password,
-        { name: clientData.name, company: clientData.company }
-      );
+      const { data, error } = await supabase.auth.admin.createUser({
+        email: clientData.username,
+        password: clientData.password,
+        email_confirm: true,
+        user_metadata: {
+          name: clientData.name,
+          company: clientData.company,
+          role: 'client'
+        }
+      });
 
       if (error) {
+        console.error('Erreur création Supabase:', error);
         alert('Erreur lors de la création du compte Supabase: ' + error.message);
         return;
       }
 
-      if (!supabaseUser.user) {
-        alert('Erreur: Utilisateur Supabase non créé');
-        return;
-      }
+      console.log('✅ Utilisateur Supabase créé:', data.user.id);
 
-      // Ajouter le client avec l'ID Supabase
+      // Ajouter le client dans le système local avec l'ID Supabase
       const newClient = addClient({
         ...clientData,
-        supabaseUserId: supabaseUser.user.id
+        supabaseUserId: data.user.id
       });
 
+      console.log('✅ Client local créé:', newClient.id);
+      
       refreshClients();
       setShowAddClientForm(false);
       alert('Client créé avec succès !');
-    } catch (error) {
-      console.error('Erreur:', error);
+      
+    } catch (err) {
+      console.error('Erreur générale:', err);
       alert('Erreur lors de la création du client');
     }
   };
 
-  const handleDeleteClient = (clientId: string) => {
-    if (confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) {
+  const handleDeleteClient = async (clientId: string) => {
+    if (!confirm('Êtes-vous sûr de vouloir supprimer ce client ?')) return;
+
+    try {
+      const client = clients.find(c => c.id === clientId);
+      
+      // Supprimer de Supabase si l'ID existe
+      if (client?.supabaseUserId) {
+        console.log('🗑️ Suppression Supabase user:', client.supabaseUserId);
+        
+        const { error } = await supabase.auth.admin.deleteUser(client.supabaseUserId);
+        if (error) {
+          console.error('Erreur suppression Supabase:', error);
+          // Continuer même si la suppression Supabase échoue
+        }
+      }
+
+      // Supprimer du système local
       deleteClient(clientId);
       refreshClients();
+      
       if (selectedClient?.id === clientId) {
         setSelectedClient(null);
       }
+      
+      console.log('✅ Client supprimé');
+      
+    } catch (err) {
+      console.error('Erreur suppression client:', err);
+      alert('Erreur lors de la suppression');
+    }
+  };
+
+  // Gestion upload PDF pour factures
+  const handleUploadPDF = async (factureId: number) => {
+    if (!selectedClient?.supabaseUserId) {
+      alert('Impossible d\'uploader: pas d\'ID Supabase pour ce client');
+      return;
+    }
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.pdf';
+    
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+
+      if (file.type !== 'application/pdf') {
+        alert('Veuillez sélectionner un fichier PDF');
+        return;
+      }
+
+      try {
+        setUploadingPDF(factureId.toString());
+        console.log(`📤 Upload PDF pour facture ${factureId}, client ${selectedClient.supabaseUserId}`);
+
+        const { data, error, publicUrl } = await uploadFacturePDF(
+          selectedClient.supabaseUserId,
+          factureId.toString(),
+          file
+        );
+
+        if (error) {
+          console.error('Erreur upload:', error);
+          alert('Erreur lors de l\'upload: ' + error.message);
+          return;
+        }
+
+        console.log('✅ PDF uploadé:', publicUrl);
+
+        // Mettre à jour la facture avec l'URL du PDF
+        const updatedData = {
+          ...selectedClient.data,
+          factures: selectedClient.data?.factures?.map(f => 
+            f.id === factureId 
+              ? { ...f, pdfUrl: publicUrl, hasPDF: true, pdfFileName: file.name }
+              : f
+          ) || []
+        };
+
+        updateClientDataAndRefresh(selectedClient.id, updatedData);
+        alert('PDF uploadé avec succès !');
+
+      } catch (err) {
+        console.error('Erreur upload PDF:', err);
+        alert('Erreur lors de l\'upload du PDF');
+      } finally {
+        setUploadingPDF(null);
+      }
+    };
+
+    input.click();
+  };
+
+  // Télécharger PDF
+  const handleDownloadPDF = (factureId: number) => {
+    if (!selectedClient?.supabaseUserId) return;
+
+    const pdfUrl = getFacturePublicUrl(selectedClient.supabaseUserId, factureId.toString());
+    
+    try {
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `facture-${factureId}.pdf`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Erreur téléchargement:', err);
+      window.open(pdfUrl, '_blank');
     }
   };
 
@@ -209,7 +243,9 @@ const AdminDashboard: React.FC = () => {
     
     const newFacture = {
       ...facture,
-      id: getNextId(selectedClient.data?.factures || [])
+      id: getNextId(selectedClient.data?.factures || []),
+      hasPDF: false,
+      pdfUrl: null
     };
     
     const updatedData = {
@@ -375,6 +411,16 @@ const AdminDashboard: React.FC = () => {
     updateClientDataAndRefresh(selectedClient.id, updatedData);
   };
 
+  // Déconnexion admin
+  const handleSignOut = async () => {
+    try {
+      console.log('🚪 Déconnexion admin...');
+      await signOut();
+    } catch (err) {
+      console.error('Erreur déconnexion:', err);
+    }
+  };
+
   // Formulaires
   const ClientForm = ({ onSave, onCancel }: any) => {
     const [formData, setFormData] = useState({
@@ -411,6 +457,7 @@ const AdminDashboard: React.FC = () => {
               onChange={(e) => setFormData({...formData, password: e.target.value})}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
               required
+              minLength={6}
             />
           </div>
           <div>
@@ -797,12 +844,12 @@ const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h1 className="text-xl font-semibold">Dashboard Admin</h1>
-                <p className="text-purple-200 text-sm">Infinity Agency</p>
+                <p className="text-purple-200 text-sm">Bienvenue {supabaseUser?.email}</p>
               </div>
             </div>
             <div className="flex items-center space-x-2">
               <button
-                onClick={signOut}
+                onClick={handleSignOut}
                 className="flex items-center space-x-2 bg-red-500 px-4 py-2 rounded-lg hover:bg-red-600 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
@@ -849,7 +896,7 @@ const AdminDashboard: React.FC = () => {
                       <p className="text-sm text-gray-500">{client.company}</p>
                       <p className="text-xs text-gray-400">{client.username}</p>
                       {client.supabaseUserId && (
-                        <p className="text-xs text-green-600">✓ Compte Supabase</p>
+                        <p className="text-xs text-green-600">✓ Supabase</p>
                       )}
                     </div>
                   </div>
@@ -899,7 +946,7 @@ const AdminDashboard: React.FC = () => {
                   <h2 className="text-2xl font-bold text-gray-900">{selectedClient.name}</h2>
                   <p className="text-gray-600">{selectedClient.company}</p>
                   {selectedClient.supabaseUserId && (
-                    <p className="text-sm text-green-600">ID Supabase: {selectedClient.supabaseUserId}</p>
+                    <p className="text-sm text-green-600">✓ Connecté à Supabase</p>
                   )}
                 </div>
               </div>
@@ -1000,78 +1047,38 @@ const AdminDashboard: React.FC = () => {
                                 <p className="text-sm">{facture.description}</p>
                               </div>
                               
-                              {/* Section PDF */}
-                              <div className="mt-4 p-3 bg-gray-50 rounded-lg">
-                                <div className="flex items-center justify-between">
+                              {/* Gestion PDF */}
+                              <div className="mt-3 flex items-center space-x-2">
+                                {facture.hasPDF ? (
                                   <div className="flex items-center space-x-2">
-                                    <FileText className="w-4 h-4 text-gray-500" />
-                                    <span className="text-sm font-medium text-gray-700">PDF de la facture</span>
-                                    {pdfStatus[facture.id]?.loading && (
-                                      <Loader2 className="w-4 h-4 animate-spin text-blue-500" />
-                                    )}
-                                    {!pdfStatus[facture.id]?.loading && pdfStatus[facture.id]?.exists && (
-                                      <CheckCircle className="w-4 h-4 text-green-500" />
-                                    )}
-                                    {!pdfStatus[facture.id]?.loading && !pdfStatus[facture.id]?.exists && (
-                                      <AlertCircle className="w-4 h-4 text-orange-500" />
-                                    )}
+                                    <span className="text-sm text-green-600 flex items-center">
+                                      <FileText className="w-4 h-4 mr-1" />
+                                      PDF disponible
+                                    </span>
+                                    <button
+                                      onClick={() => handleDownloadPDF(facture.id)}
+                                      className="text-blue-600 hover:text-blue-800 text-sm flex items-center"
+                                    >
+                                      <Download className="w-4 h-4 mr-1" />
+                                      Télécharger
+                                    </button>
                                   </div>
-                                  
-                                  <div className="flex items-center space-x-2">
-                                    {/* Upload PDF */}
-                                    <label className="cursor-pointer">
-                                      <input
-                                        type="file"
-                                        accept=".pdf"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                          const file = e.target.files?.[0];
-                                          if (file && selectedClient.supabaseUserId) {
-                                            handlePDFUpload(facture.id, file);
-                                          }
-                                        }}
-                                        disabled={uploadingPDF[facture.id] || !selectedClient.supabaseUserId}
-                                      />
-                                      <div className={`flex items-center space-x-1 px-3 py-1 rounded text-sm transition-colors ${
-                                        uploadingPDF[facture.id] || !selectedClient.supabaseUserId
-                                          ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                                          : 'bg-blue-600 text-white hover:bg-blue-700 cursor-pointer'
-                                      }`}>
-                                        {uploadingPDF[facture.id] ? (
-                                          <Loader2 className="w-4 h-4 animate-spin" />
-                                        ) : (
-                                          <Upload className="w-4 h-4" />
-                                        )}
-                                        <span>
-                                          {uploadingPDF[facture.id] 
-                                            ? 'Upload...' 
-                                            : pdfStatus[facture.id]?.exists 
-                                              ? 'Remplacer' 
-                                              : 'Upload PDF'
-                                          }
-                                        </span>
-                                      </div>
-                                    </label>
-                                    
-                                    {/* Télécharger PDF */}
-                                    {pdfStatus[facture.id]?.exists && selectedClient.supabaseUserId && (
-                                      <a
-                                        href={getFacturePublicUrl(selectedClient.supabaseUserId, facture.id.toString())}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="flex items-center space-x-1 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 transition-colors"
-                                      >
-                                        <Download className="w-4 h-4" />
-                                        <span>Télécharger</span>
-                                      </a>
-                                    )}
-                                  </div>
-                                </div>
+                                ) : (
+                                  <span className="text-sm text-gray-500 flex items-center">
+                                    <AlertCircle className="w-4 h-4 mr-1" />
+                                    Pas de PDF
+                                  </span>
+                                )}
                                 
-                                {!selectedClient.supabaseUserId && (
-                                  <p className="text-xs text-red-600 mt-2">
-                                    ⚠️ ID Supabase manquant - Impossible d'uploader des PDF
-                                  </p>
+                                {selectedClient.supabaseUserId && (
+                                  <button
+                                    onClick={() => handleUploadPDF(facture.id)}
+                                    disabled={uploadingPDF === facture.id.toString()}
+                                    className="text-purple-600 hover:text-purple-800 text-sm flex items-center disabled:opacity-50"
+                                  >
+                                    <Upload className="w-4 h-4 mr-1" />
+                                    {uploadingPDF === facture.id.toString() ? 'Upload...' : 'Upload PDF'}
+                                  </button>
                                 )}
                               </div>
                             </div>
