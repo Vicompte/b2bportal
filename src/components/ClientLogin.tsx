@@ -14,10 +14,36 @@ const ClientLogin: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Redirection automatique si déjà connecté
+  // 1. Vérifier la session existante au chargement
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (!error && session?.user) {
+          console.log('Session existante détectée pour:', session.user.email);
+          
+          // Redirection immédiate selon l'email
+          if (session.user.email === 'contact@infinityagency.be') {
+            console.log('Admin détecté, redirection vers /admin');
+            navigate('/admin', { replace: true });
+          } else {
+            console.log('Client détecté, redirection vers /client');
+            navigate('/client', { replace: true });
+          }
+        }
+      } catch (err) {
+        console.error('Erreur lors de la vérification de session:', err);
+      }
+    };
+
+    checkExistingSession();
+  }, [navigate]);
+
+  // 2. Redirection automatique si utilisateur connecté via AuthContext
   useEffect(() => {
     if (user) {
-      console.log('Utilisateur déjà connecté, redirection...');
+      console.log('Utilisateur connecté via AuthContext, redirection...');
       if (user.email === 'contact@infinityagency.be') {
         navigate('/admin', { replace: true });
       } else {
@@ -26,7 +52,7 @@ const ClientLogin: React.FC = () => {
     }
   }, [user, navigate]);
 
-  // Tester la connexion Supabase au chargement
+  // 3. Tester la connexion Supabase au chargement
   useEffect(() => {
     const checkConnection = async () => {
       const isConnected = await testSupabaseConnection();
@@ -36,6 +62,7 @@ const ClientLogin: React.FC = () => {
     checkConnection();
   }, []);
 
+  // 4. Handler de connexion avec redirection immédiate
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -62,13 +89,15 @@ const ClientLogin: React.FC = () => {
           errorMessage = 'Veuillez confirmer votre email avant de vous connecter';
         } else if (error.message.includes('Too many requests')) {
           errorMessage = 'Trop de tentatives de connexion. Veuillez patienter quelques minutes.';
+        } else if (error.message.includes('signup_disabled')) {
+          errorMessage = 'Les inscriptions sont désactivées';
         }
         
         setError(errorMessage);
       } else if (data.user) {
         console.log('Connexion client réussie pour:', data.user.email);
         
-        // Vérifier si c'est l'admin qui se connecte sur le portail client
+        // Redirection immédiate selon le rôle
         if (data.user.email === 'contact@infinityagency.be') {
           console.log('Admin détecté, redirection vers /admin');
           navigate('/admin', { replace: true });
