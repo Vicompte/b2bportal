@@ -170,12 +170,18 @@ export const createClientUser = async (email: string, password: string, metadata
   }
 };
 
-// Test de connexion Supabase
+// Test de connexion Supabase - CORRIGÉ
 export const testSupabaseConnection = async () => {
   try {
-    const { data, error } = await supabase.from('test').select('*').limit(1);
-    console.log('Test connexion Supabase:', { data, error });
-    return !error;
+    // Test simple avec la session au lieu d'une table inexistante
+    const { data, error } = await supabase.auth.getSession();
+    console.log('Test connexion Supabase - Session check:', { sessionExists: !!data.session, error });
+    
+    // Alternative: tester le bucket storage
+    const { data: buckets, error: storageError } = await supabase.storage.listBuckets();
+    console.log('Test connexion Supabase - Storage check:', { bucketsCount: buckets?.length || 0, storageError });
+    
+    return !error && !storageError;
   } catch (err) {
     console.error('Erreur test connexion:', err);
     return false;
