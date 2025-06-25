@@ -5,18 +5,18 @@ const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYm
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
-// Fonction utilitaire pour uploader un fichier PDF dans le bucket factures
-export const uploadFacturePDF = async (factureId: string, file: File): Promise<{ data: any; error: any; publicUrl?: string }> => {
+// Fonction utilitaire pour uploader un fichier PDF dans le bucket factures organisé par user_id
+export const uploadFacturePDF = async (userId: string, factureId: string, file: File): Promise<{ data: any; error: any; publicUrl?: string }> => {
   try {
-    const fileName = file.name;
-    const filePath = `factures/${factureId}/${fileName}`;
+    const fileName = 'facture.pdf'; // Nom standardisé
+    const filePath = `factures/${userId}/${factureId}/${fileName}`;
     
-    // Upload du fichier
+    // Upload du fichier (upsert: true pour remplacer si existe)
     const { data, error } = await supabase.storage
       .from('factures')
       .upload(filePath, file, {
         cacheControl: '3600',
-        upsert: false
+        upsert: true // Permet de remplacer le fichier existant
       });
 
     if (error) {
@@ -42,8 +42,8 @@ export const uploadFacturePDF = async (factureId: string, file: File): Promise<{
 };
 
 // Fonction pour récupérer l'URL publique d'un fichier existant
-export const getFacturePublicUrl = (factureId: string, fileName: string): string => {
-  const filePath = `factures/${factureId}/${fileName}`;
+export const getFacturePublicUrl = (userId: string, factureId: string): string => {
+  const filePath = `factures/${userId}/${factureId}/facture.pdf`;
   const { data } = supabase.storage
     .from('factures')
     .getPublicUrl(filePath);
@@ -51,11 +51,40 @@ export const getFacturePublicUrl = (factureId: string, fileName: string): string
   return data.publicUrl;
 };
 
-// Fonction pour lister tous les fichiers d'une facture
-export const listFactureFiles = async (factureId: string) => {
+// Fonction pour vérifier si un PDF existe pour une facture
+export const checkFacturePDFExists = async (userId: string, factureId: string): Promise<boolean> => {
+  try {
+    const filePath = `factures/${userId}/${factureId}/facture.pdf`;
+    const { data, error } = await supabase.storage
+      .from('factures')
+      .list(`factures/${userId}/${factureId}`, {
+        limit: 1
+      });
+
+    if (error) return false;
+    return data && data.length > 0 && data.some(file => file.name === 'facture.pdf');
+  } catch {
+    return false;
+  }
+};
+
+// Fonction pour lister tous les fichiers d'un utilisateur
+export const listUserFactureFiles = async (userId: string) => {
   const { data, error } = await supabase.storage
     .from('factures')
-    .list(`factures/${factureId}`, {
+    .list(`factures/${userId}`, {
+      limit: 100,
+      offset: 0
+    });
+
+  return { data, error };
+};
+
+// Fonction pour lister les fichiers d'une facture spécifique
+export const listFactureFiles = async (userId: string, factureId: string) => {
+  const { data, error } = await supabase.storage
+    .from('factures')
+    .list(`factures/${userId}/${factureId}`, {
       limit: 100,
       offset: 0
     });
@@ -64,12 +93,24 @@ export const listFactureFiles = async (factureId: string) => {
 };
 
 // Fonction pour supprimer un fichier
-export const deleteFactureFile = async (factureId: string, fileName: string) => {
-  const filePath = `factures/${factureId}/${fileName}`;
+export const deleteFactureFile = async (userId: string, factureId: string) => {
+  const filePath = `factures/${userId}/${factureId}/facture.pdf`;
   
   const { data, error } = await supabase.storage
     .from('factures')
     .remove([filePath]);
+
+  return { data, error };
+};
+
+// Fonction pour créer un utilisateur client dans Supabase Auth
+export const createClientUser = async (email: string, password: string, metadata: { name: string; company: string }) => {
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+    user_metadata: metadata
+  });
 
   return { data, error };
 };

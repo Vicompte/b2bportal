@@ -6,6 +6,7 @@ export interface User {
   password: string;
   name?: string;
   company?: string;
+  supabaseUserId?: string; // ID Supabase pour les clients
   data?: {
     factures: any[];
     contenus: any[];
@@ -30,6 +31,7 @@ export interface Facture {
   description: string;
   pdfUrl?: string;
   pdfFileName?: string;
+  hasPDF?: boolean; // Indicateur si un PDF existe
 }
 
 // Données par défaut des utilisateurs - SEUL ADMIN
@@ -133,8 +135,8 @@ export const updateClientData = (clientId: string, newData: any): void => {
   }
 };
 
-// Ajouter un nouveau client
-export const addClient = (clientData: Omit<User, 'id' | 'role'>): User => {
+// Ajouter un nouveau client avec Supabase User ID
+export const addClient = (clientData: Omit<User, 'id' | 'role'> & { supabaseUserId?: string }): User => {
   const authData = loadAuthData();
   const newId = `client${Date.now()}`;
   const newClient: User = {
@@ -159,4 +161,21 @@ export const deleteClient = (clientId: string): void => {
   const authData = loadAuthData();
   authData.users = authData.users.filter(u => u.id !== clientId);
   saveAuthData(authData);
+};
+
+// Trouver un client par son Supabase User ID
+export const getClientBySupabaseId = (supabaseUserId: string): User | null => {
+  const authData = loadAuthData();
+  return authData.users.find(u => u.supabaseUserId === supabaseUserId) || null;
+};
+
+// Mettre à jour le Supabase User ID d'un client
+export const updateClientSupabaseId = (clientId: string, supabaseUserId: string): void => {
+  const authData = loadAuthData();
+  const clientIndex = authData.users.findIndex(u => u.id === clientId);
+  
+  if (clientIndex !== -1) {
+    authData.users[clientIndex].supabaseUserId = supabaseUserId;
+    saveAuthData(authData);
+  }
 };
