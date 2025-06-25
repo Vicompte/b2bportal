@@ -1,4 +1,6 @@
-// Gestionnaire d'authentification et des utilisateurs
+// ✅ GESTIONNAIRE AUTH HYBRIDE - LocalStorage + Supabase
+import { createClientUser } from '../lib/supabase'
+
 export interface User {
   id: string;
   role: 'admin' | 'client';
@@ -31,10 +33,10 @@ export interface Facture {
   description: string;
   pdfUrl?: string;
   pdfFileName?: string;
-  hasPDF?: boolean; // Indicateur si un PDF existe
+  hasPDF?: boolean;
 }
 
-// Données par défaut des utilisateurs - SEUL ADMIN
+// ✅ SEUL ADMIN PAR DÉFAUT - Clients créés dynamiquement
 const defaultUsers: User[] = [
   {
     id: "admin",
@@ -44,138 +46,205 @@ const defaultUsers: User[] = [
     name: "Administrateur",
     company: "Infinity Agency"
   }
-  // Aucun client par défaut - tableau vide
-];
+]
 
-const STORAGE_KEY = 'authData';
+const STORAGE_KEY = 'authData'
 
-// Fonction pour réinitialiser les données (utile pour le développement)
+// ✅ Fonction de réinitialisation complète
 export const resetAuthData = (): void => {
-  localStorage.removeItem(STORAGE_KEY);
-  localStorage.removeItem('currentUser');
-};
+  console.log('🔄 Réinitialisation complète des données auth')
+  localStorage.removeItem(STORAGE_KEY)
+  localStorage.removeItem('currentUser')
+}
 
-// Charger les données d'authentification
+// ✅ Chargement des données avec validation
 export const loadAuthData = (): AuthState => {
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
+    const stored = localStorage.getItem(STORAGE_KEY)
     if (stored) {
-      const parsed = JSON.parse(stored);
+      const parsed = JSON.parse(stored)
       if (parsed && parsed.users && Array.isArray(parsed.users)) {
         // Vérifier si l'admin existe avec les bons identifiants
         const adminExists = parsed.users.find(u => 
           u.role === 'admin' && 
           u.username === 'contact@infinityagency.be' && 
           u.password === 'InfinityAgency1812**'
-        );
+        )
         
         if (!adminExists) {
-          // Si l'admin n'existe pas avec les bons identifiants, réinitialiser
-          console.log('Admin avec nouveaux identifiants non trouvé, réinitialisation...');
-          resetAuthData();
+          console.log('⚠️ Admin avec nouveaux identifiants non trouvé, réinitialisation...')
+          resetAuthData()
           return {
             isAuthenticated: false,
             currentUser: null,
             users: defaultUsers
-          };
+          }
         }
         
         return {
           isAuthenticated: false,
           currentUser: null,
           users: parsed.users
-        };
+        }
       }
     }
   } catch (error) {
-    console.error('Erreur lors du chargement des données auth:', error);
-    resetAuthData();
+    console.error('❌ Erreur lors du chargement des données auth:', error)
+    resetAuthData()
   }
   
-  // Retourner les données par défaut
   return {
     isAuthenticated: false,
     currentUser: null,
     users: defaultUsers
-  };
-};
+  }
+}
 
-// Sauvegarder les données d'authentification
+// ✅ Sauvegarde sécurisée
 export const saveAuthData = (authState: AuthState): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify({
       users: authState.users
-    }));
+    }))
   } catch (error) {
-    console.error('Erreur lors de la sauvegarde des données auth:', error);
+    console.error('❌ Erreur lors de la sauvegarde des données auth:', error)
   }
-};
+}
 
-// Authentifier un utilisateur
+// ✅ Authentification utilisateur
 export const authenticateUser = (username: string, password: string): User | null => {
-  const authData = loadAuthData();
-  const user = authData.users.find(u => u.username === username && u.password === password);
-  return user || null;
-};
+  const authData = loadAuthData()
+  const user = authData.users.find(u => u.username === username && u.password === password)
+  return user || null
+}
 
-// Obtenir tous les clients (pour l'admin)
+// ✅ Obtenir tous les clients
 export const getAllClients = (): User[] => {
-  const authData = loadAuthData();
-  return authData.users.filter(u => u.role === 'client');
-};
+  const authData = loadAuthData()
+  return authData.users.filter(u => u.role === 'client')
+}
 
-// Mettre à jour les données d'un client
+// ✅ Mettre à jour les données d'un client
 export const updateClientData = (clientId: string, newData: any): void => {
-  const authData = loadAuthData();
-  const clientIndex = authData.users.findIndex(u => u.id === clientId);
+  const authData = loadAuthData()
+  const clientIndex = authData.users.findIndex(u => u.id === clientId)
   
   if (clientIndex !== -1) {
-    authData.users[clientIndex].data = newData;
-    saveAuthData(authData);
+    authData.users[clientIndex].data = newData
+    saveAuthData(authData)
   }
-};
+}
 
-// Ajouter un nouveau client avec Supabase User ID
-export const addClient = (clientData: Omit<User, 'id' | 'role'> & { supabaseUserId?: string }): User => {
-  const authData = loadAuthData();
-  const newId = `client${Date.now()}`;
+// ✅ Ajouter un nouveau client avec création Supabase automatique
+export const addClient = async (clientData: Omit<User, 'id' | 'role'> & { supabaseUserId?: string }): Promise<User> => {
+  const authData = loadAuthData()
+  const newId = `client${Date.now()}`
+  
+  // Créer l'utilisateur dans Supabase si pas d'ID fourni
+  let supabaseUserId = clientData.supabaseUserId
+  
+  if (!supabaseUserId) {
+    console.log('🔄 Création utilisateur Supabase pour:', clientData.username)
+    
+    const { data, error } = await createClientUser(
+      clientData.username,
+      clientData.password,
+      {
+        name: clientData.name,
+        company: clientData.company,
+        role: 'client'
+      }
+    )
+    
+    if (data?.user) {
+      supabaseUserId = data.user.id
+      console.log('✅ Utilisateur Supabase créé:', supabaseUserId)
+    } else {
+      console.error('❌ Erreur création Supabase:', error)
+      // Continuer avec un ID temporaire
+      supabaseUserId = `temp-${newId}`
+    }
+  }
+  
   const newClient: User = {
     ...clientData,
     id: newId,
     role: 'client',
+    supabaseUserId,
     data: {
       factures: [],
       contenus: [],
       credentials: [],
       rapports: []
     }
-  };
+  }
   
-  authData.users.push(newClient);
-  saveAuthData(authData);
-  return newClient;
-};
+  authData.users.push(newClient)
+  saveAuthData(authData)
+  return newClient
+}
 
-// Supprimer un client
+// ✅ Supprimer un client
 export const deleteClient = (clientId: string): void => {
-  const authData = loadAuthData();
-  authData.users = authData.users.filter(u => u.id !== clientId);
-  saveAuthData(authData);
-};
+  const authData = loadAuthData()
+  authData.users = authData.users.filter(u => u.id !== clientId)
+  saveAuthData(authData)
+}
 
-// Trouver un client par son Supabase User ID
+// ✅ Trouver un client par son Supabase User ID
 export const getClientBySupabaseId = (supabaseUserId: string): User | null => {
-  const authData = loadAuthData();
-  return authData.users.find(u => u.supabaseUserId === supabaseUserId) || null;
-};
+  const authData = loadAuthData()
+  return authData.users.find(u => u.supabaseUserId === supabaseUserId) || null
+}
 
-// Mettre à jour le Supabase User ID d'un client
+// ✅ Mettre à jour le Supabase User ID d'un client
 export const updateClientSupabaseId = (clientId: string, supabaseUserId: string): void => {
-  const authData = loadAuthData();
-  const clientIndex = authData.users.findIndex(u => u.id === clientId);
+  const authData = loadAuthData()
+  const clientIndex = authData.users.findIndex(u => u.id === clientId)
   
   if (clientIndex !== -1) {
-    authData.users[clientIndex].supabaseUserId = supabaseUserId;
-    saveAuthData(authData);
+    authData.users[clientIndex].supabaseUserId = supabaseUserId
+    saveAuthData(authData)
+    console.log(`✅ Supabase ID mis à jour pour client ${clientId}: ${supabaseUserId}`)
   }
-};
+}
+
+// ✅ Fonction de migration pour les clients existants sans Supabase ID
+export const migrateExistingClients = async (): Promise<void> => {
+  const authData = loadAuthData()
+  const clientsWithoutSupabaseId = authData.users.filter(u => 
+    u.role === 'client' && (!u.supabaseUserId || u.supabaseUserId.startsWith('temp-'))
+  )
+  
+  if (clientsWithoutSupabaseId.length === 0) {
+    console.log('✅ Tous les clients ont déjà un Supabase ID')
+    return
+  }
+  
+  console.log(`🔄 Migration de ${clientsWithoutSupabaseId.length} clients vers Supabase...`)
+  
+  for (const client of clientsWithoutSupabaseId) {
+    try {
+      const { data, error } = await createClientUser(
+        client.username,
+        client.password,
+        {
+          name: client.name,
+          company: client.company,
+          role: 'client'
+        }
+      )
+      
+      if (data?.user) {
+        updateClientSupabaseId(client.id, data.user.id)
+        console.log(`✅ Client ${client.username} migré: ${data.user.id}`)
+      } else {
+        console.error(`❌ Erreur migration ${client.username}:`, error)
+      }
+    } catch (err) {
+      console.error(`❌ Erreur fatale migration ${client.username}:`, err)
+    }
+  }
+  
+  console.log('✅ Migration terminée')
+}
