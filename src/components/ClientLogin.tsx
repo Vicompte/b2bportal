@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase, testSupabaseConnection } from '../utils/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const ClientLogin: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -8,6 +10,21 @@ const ClientLogin: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Redirection automatique si déjà connecté
+  useEffect(() => {
+    if (user) {
+      console.log('Utilisateur déjà connecté, redirection...');
+      if (user.email === 'contact@infinityagency.be') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/client', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   // Tester la connexion Supabase au chargement
   useEffect(() => {
@@ -25,24 +42,43 @@ const ClientLogin: React.FC = () => {
     setError('');
     
     try {
-      console.log('Tentative de connexion pour:', email);
+      console.log('Tentative de connexion client pour:', email);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      console.log('Résultat connexion:', { data, error });
+      console.log('Résultat connexion client:', { data, error });
 
       if (error) {
-        console.error('Erreur de connexion:', error);
-        setError(error.message);
+        console.error('Erreur de connexion client:', error);
+        
+        // Messages d'erreur plus explicites
+        let errorMessage = error.message;
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email ou mot de passe incorrect';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Veuillez confirmer votre email avant de vous connecter';
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = 'Trop de tentatives de connexion. Veuillez patienter quelques minutes.';
+        }
+        
+        setError(errorMessage);
       } else if (data.user) {
-        console.log('Connexion réussie pour:', data.user.email);
-        // La redirection sera gérée par le AuthContext
+        console.log('Connexion client réussie pour:', data.user.email);
+        
+        // Vérifier si c'est l'admin qui se connecte sur le portail client
+        if (data.user.email === 'contact@infinityagency.be') {
+          console.log('Admin détecté, redirection vers /admin');
+          navigate('/admin', { replace: true });
+        } else {
+          console.log('Client détecté, redirection vers /client');
+          navigate('/client', { replace: true });
+        }
       }
     } catch (err) {
-      console.error('Erreur générale:', err);
+      console.error('Erreur générale client:', err);
       setError('Une erreur est survenue lors de la connexion');
     } finally {
       setIsLoading(false);
@@ -167,10 +203,20 @@ const ClientLogin: React.FC = () => {
 
           {/* Informations de contact */}
           <div className="mt-8 pt-6 border-t border-gray-200">
-            <p className="text-sm text-gray-600 text-center">
+            <p className="text-sm text-gray-600 text-center mb-3">
               Besoin d'aide pour vous connecter ?<br />
               Contactez-nous à <strong>contact@infinityagency.be</strong>
             </p>
+            
+            {/* Lien vers le portail admin */}
+            <div className="text-center">
+              <button
+                onClick={() => navigate('/admin/login')}
+                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              >
+                Accès administrateur
+              </button>
+            </div>
           </div>
         </div>
       </div>

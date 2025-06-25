@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User, Lock, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase, testSupabaseConnection } from '../utils/supabase';
+import { useAuth } from '../contexts/AuthContext';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -8,6 +10,21 @@ const Login: React.FC = () => {
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Redirection automatique si déjà connecté
+  useEffect(() => {
+    if (user) {
+      console.log('Utilisateur déjà connecté, redirection...');
+      if (user.email === 'contact@infinityagency.be') {
+        navigate('/admin', { replace: true });
+      } else {
+        navigate('/client', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   // Tester la connexion Supabase au chargement
   useEffect(() => {
@@ -36,13 +53,29 @@ const Login: React.FC = () => {
 
       if (error) {
         console.error('Erreur de connexion admin:', error);
-        setError(error.message);
+        
+        // Messages d'erreur plus explicites
+        let errorMessage = error.message;
+        if (error.message.includes('Invalid login credentials')) {
+          errorMessage = 'Email ou mot de passe incorrect';
+        } else if (error.message.includes('Email not confirmed')) {
+          errorMessage = 'Veuillez confirmer votre email avant de vous connecter';
+        } else if (error.message.includes('Too many requests')) {
+          errorMessage = 'Trop de tentatives de connexion. Veuillez patienter quelques minutes.';
+        }
+        
+        setError(errorMessage);
       } else if (data.user) {
         console.log('Connexion admin réussie pour:', data.user.email);
+        
         // Vérifier que c'est bien l'admin
         if (data.user.email !== 'contact@infinityagency.be') {
           setError('Accès non autorisé - Compte admin requis');
           await supabase.auth.signOut();
+        } else {
+          // Redirection immédiate pour l'admin
+          console.log('Redirection vers /admin');
+          navigate('/admin', { replace: true });
         }
       }
     } catch (err) {
@@ -168,6 +201,17 @@ const Login: React.FC = () => {
               )}
             </button>
           </form>
+
+          {/* Lien vers le portail client */}
+          <div className="mt-6 pt-6 border-t border-gray-200 text-center">
+            <p className="text-sm text-gray-600 mb-2">Vous êtes un client ?</p>
+            <button
+              onClick={() => navigate('/client/login')}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              Accéder au portail client
+            </button>
+          </div>
         </div>
       </div>
     </div>

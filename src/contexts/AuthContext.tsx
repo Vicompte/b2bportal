@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '../utils/supabase';
 
 interface AuthContextType {
@@ -25,6 +26,9 @@ interface AuthProviderProps {
 export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
     // Récupérer la session actuelle
@@ -37,6 +41,16 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         } else {
           console.log('Session récupérée:', session?.user?.email || 'Aucune session');
           setUser(session?.user ?? null);
+          
+          // Redirection automatique si utilisateur connecté et sur une page de login
+          if (session?.user && (location.pathname.includes('/login') || location.pathname === '/')) {
+            console.log('Redirection automatique depuis la session...');
+            if (session.user.email === 'contact@infinityagency.be') {
+              navigate('/admin', { replace: true });
+            } else {
+              navigate('/client', { replace: true });
+            }
+          }
         }
       } catch (err) {
         console.error('Erreur générale getSession:', err);
@@ -53,11 +67,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.log('Auth state change:', event, session?.user?.email || 'Aucun utilisateur');
         setUser(session?.user ?? null);
         setIsLoading(false);
+        
+        // Redirection automatique lors des changements d'état
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('SIGNED_IN détecté, redirection...');
+          if (session.user.email === 'contact@infinityagency.be') {
+            navigate('/admin', { replace: true });
+          } else {
+            navigate('/client', { replace: true });
+          }
+        } else if (event === 'SIGNED_OUT') {
+          console.log('SIGNED_OUT détecté, redirection vers login...');
+          navigate('/client/login', { replace: true });
+        }
       }
     );
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate, location.pathname]);
 
   const signOut = async () => {
     try {
@@ -67,6 +94,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         console.error('Erreur lors de la déconnexion:', error);
       } else {
         console.log('Déconnexion réussie');
+        // La redirection sera gérée par onAuthStateChange
       }
     } catch (err) {
       console.error('Erreur générale signOut:', err);
