@@ -165,10 +165,10 @@ export const deleteClient = (clientId: string): void => {
   saveAuthData(authData)
 }
 
-// ✅ Trouver un client par son Supabase User ID
+// ✅ Fonction pour récupérer un client par son Supabase ID
 export const getClientBySupabaseId = (supabaseUserId: string): User | null => {
   const authData = loadAuthData()
-  return authData.users.find(u => u.supabaseUserId === supabaseUserId) || null
+  return authData.users.find(u => u.supabaseUserId === supabaseUserId && u.role === 'client') || null
 }
 
 // ✅ Mettre à jour le Supabase User ID d'un client
