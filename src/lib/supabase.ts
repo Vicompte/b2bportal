@@ -60,7 +60,7 @@ export const createClientUser = async (email: string, password: string, metadata
   }
 }
 
-// ✅ Fonction d'upload PDF BULLETPROOF
+// ✅ VERSION CORRIGÉE de la fonction uploadFacturePDF
 export const uploadFacturePDF = async (userId: string, factureId: string, file: File) => {
   try {
     if (!userId || userId.startsWith('temp-')) {
@@ -72,16 +72,7 @@ export const uploadFacturePDF = async (userId: string, factureId: string, file: 
     const fileName = 'facture.pdf'
     const filePath = `${userId}/${factureId}/${fileName}`
     
-    // Vérifier que le bucket existe
-    const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
-    if (bucketsError) throw bucketsError
-    
-    const facturesBucket = buckets.find(b => b.id === 'factures')
-    if (!facturesBucket) {
-      throw new Error('Bucket "factures" non trouvé - Créez-le dans Supabase Dashboard')
-    }
-
-    // Upload avec remplacement
+    // ✅ Upload direct sans vérification préalable de bucket
     const { data, error } = await supabase.storage
       .from('factures')
       .upload(filePath, file, {
@@ -89,7 +80,10 @@ export const uploadFacturePDF = async (userId: string, factureId: string, file: 
         upsert: true
       })
 
-    if (error) throw error
+    if (error) {
+      console.error('❌ Erreur upload:', error)
+      throw error
+    }
 
     // Générer URL publique
     const { data: publicData } = supabase.storage
