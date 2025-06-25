@@ -19,11 +19,17 @@ const ClientPortal: React.FC = () => {
   // Récupérer les factures du client
   useEffect(() => {
     const loadFactures = async () => {
-      if (!user?.id) return;
+      if (!user?.id) {
+        console.log('Pas d\'ID utilisateur disponible');
+        setIsLoading(false);
+        return;
+      }
 
       try {
         setIsLoading(true);
         setError('');
+
+        console.log('Chargement des factures pour l\'utilisateur:', user.id);
 
         // Lister tous les dossiers de factures pour cet utilisateur
         const { data, error } = await listUserFactureFiles(user.id);
@@ -34,7 +40,10 @@ const ClientPortal: React.FC = () => {
           return;
         }
 
+        console.log('Données reçues:', data);
+
         if (!data || data.length === 0) {
+          console.log('Aucune facture trouvée');
           setFactures([]);
           return;
         }
@@ -45,27 +54,44 @@ const ClientPortal: React.FC = () => {
           .map(async (folder) => {
             const factureId = folder.name;
             
-            // Vérifier si le PDF existe dans ce dossier
-            const { data: files } = await supabase.storage
-              .from('factures')
-              .list(`factures/${user.id}/${factureId}`, { limit: 10 });
+            try {
+              // Vérifier si le PDF existe dans ce dossier
+              const { data: files, error: listError } = await supabase.storage
+                .from('factures')
+                .list(`${user.id}/${factureId}`, { limit: 10 });
 
-            const hasPDF = files?.some(file => file.name === 'facture.pdf') || false;
-            const pdfUrl = hasPDF ? getFacturePublicUrl(user.id, factureId) : undefined;
+              if (listError) {
+                console.error(`Erreur lors de la vérification du PDF pour ${factureId}:`, listError);
+              }
 
-            return {
-              id: factureId,
-              name: factureId,
-              hasPDF,
-              pdfUrl
-            };
+              const hasPDF = files?.some(file => file.name === 'facture.pdf') || false;
+              const pdfUrl = hasPDF ? getFacturePublicUrl(user.id, factureId) : undefined;
+
+              console.log(`Facture ${factureId}: PDF=${hasPDF}, URL=${pdfUrl}`);
+
+              return {
+                id: factureId,
+                name: factureId,
+                hasPDF,
+                pdfUrl
+              };
+            } catch (err) {
+              console.error(`Erreur pour la facture ${factureId}:`, err);
+              return {
+                id: factureId,
+                name: factureId,
+                hasPDF: false,
+                pdfUrl: undefined
+              };
+            }
           });
 
         const facturesData = await Promise.all(facturePromises);
+        console.log('Factures traitées:', facturesData);
         setFactures(facturesData.sort((a, b) => a.name.localeCompare(b.name)));
 
       } catch (err) {
-        console.error('Erreur:', err);
+        console.error('Erreur générale:', err);
         setError('Une erreur est survenue lors du chargement');
       } finally {
         setIsLoading(false);
@@ -76,13 +102,20 @@ const ClientPortal: React.FC = () => {
   }, [user?.id]);
 
   const handleDownload = (pdfUrl: string, factureName: string) => {
-    const link = document.createElement('a');
-    link.href = pdfUrl;
-    link.download = `facture-${factureName}.pdf`;
-    link.target = '_blank';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    try {
+      const link = document.createElement('a');
+      link.href = pdfUrl;
+      link.download = `facture-${factureName}.pdf`;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Erreur lors du téléchargement:', err);
+      // Fallback: ouvrir dans un nouvel onglet
+      window.open(pdfUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const handleSignOut = async () => {
@@ -108,6 +141,10 @@ const ClientPortal: React.FC = () => {
                   src="/IMG_0214.PNG" 
                   alt="Infinity Agency Logo" 
                   className="h-12 w-auto object-contain"
+                  onError={(e) => {
+                    console.error('Erreur de chargement du logo');
+                    e.currentTarget.style.display = 'none';
+                  }}
                 />
               </div>
               <div>
@@ -135,6 +172,17 @@ const ClientPortal: React.FC = () => {
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Mes Factures</h2>
           <p className="text-gray-600">Consultez et téléchargez vos factures PDF</p>
         </div>
+
+        {/* Informations de debug en développement */}
+        {import.meta.env.DEV && (
+          <div className="mb-4 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <p className="text-sm text-yellow-800">
+              <strong>Debug:</strong> User ID: {user?.id || 'Non défini'} | 
+              Email: {user?.email || 'Non défini'} | 
+              Factures: {factures.length}
+            </p>
+          </div>
+        )}
 
         {/* État de chargement */}
         {isLoading && (
