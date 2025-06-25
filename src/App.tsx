@@ -1,6 +1,6 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { useAuth } from './contexts/AuthContext';
 import Login from './components/Login';
 import ClientLogin from './components/ClientLogin';
 import AdminDashboard from './components/AdminDashboard';
@@ -54,37 +54,33 @@ const ClientRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Routes Admin */}
-          <Route path="/admin/login" element={<Login />} />
-          <Route 
-            path="/admin" 
-            element={
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            } 
-          />
-          
-          {/* Routes Client */}
-          <Route path="/client/login" element={<ClientLogin />} />
-          <Route 
-            path="/client" 
-            element={
-              <ClientRoute>
-                <ClientPortal />
-              </ClientRoute>
-            } 
-          />
-          
-          {/* Redirections par défaut */}
-          <Route path="/" element={<Navigate to="/client/login" replace />} />
-          <Route path="*" element={<Navigate to="/client/login" replace />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+    <Routes>
+      {/* Routes Admin */}
+      <Route path="/admin/login" element={<Login />} />
+      <Route 
+        path="/admin" 
+        element={
+          <AdminRoute>
+            <AdminDashboard />
+          </AdminRoute>
+        } 
+      />
+      
+      {/* Routes Client */}
+      <Route path="/client/login" element={<ClientLogin />} />
+      <Route 
+        path="/client" 
+        element={
+          <ClientRoute>
+            <ClientPortal />
+          </ClientRoute>
+        } 
+      />
+      
+      {/* Redirections par défaut */}
+      <Route path="/" element={<Navigate to="/client/login" replace />} />
+      <Route path="*" element={<Navigate to="/client/login" replace />} />
+    </Routes>
   );
 }
 
