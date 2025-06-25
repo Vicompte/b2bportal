@@ -135,42 +135,16 @@ export const updateClientData = (clientId: string, newData: any): void => {
   }
 }
 
-// ✅ Ajouter un nouveau client avec création Supabase automatique
-export const addClient = async (clientData: Omit<User, 'id' | 'role'> & { supabaseUserId?: string }): Promise<User> => {
+// ✅ FONCTION CORRIGÉE - Ajouter un nouveau client (SYNCHRONE)
+export const addClient = (clientData: Omit<User, 'id' | 'role'> & { supabaseUserId?: string }): User => {
   const authData = loadAuthData()
   const newId = `client${Date.now()}`
-  
-  // Créer l'utilisateur dans Supabase si pas d'ID fourni
-  let supabaseUserId = clientData.supabaseUserId
-  
-  if (!supabaseUserId) {
-    console.log('🔄 Création utilisateur Supabase pour:', clientData.username)
-    
-    const { data, error } = await createClientUser(
-      clientData.username,
-      clientData.password,
-      {
-        name: clientData.name,
-        company: clientData.company,
-        role: 'client'
-      }
-    )
-    
-    if (data?.user) {
-      supabaseUserId = data.user.id
-      console.log('✅ Utilisateur Supabase créé:', supabaseUserId)
-    } else {
-      console.error('❌ Erreur création Supabase:', error)
-      // Continuer avec un ID temporaire
-      supabaseUserId = `temp-${newId}`
-    }
-  }
   
   const newClient: User = {
     ...clientData,
     id: newId,
     role: 'client',
-    supabaseUserId,
+    supabaseUserId: clientData.supabaseUserId || `temp-${newId}`,
     data: {
       factures: [],
       contenus: [],
