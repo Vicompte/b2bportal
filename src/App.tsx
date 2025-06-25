@@ -5,27 +5,37 @@ import Login from './components/Login';
 import ClientLogin from './components/ClientLogin';
 import AdminDashboard from './components/AdminDashboard';
 import ClientPortal from './components/ClientPortal';
+import { Loader2 } from 'lucide-react';
 
 // Composant pour protéger les routes admin
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
+  console.log('AdminRoute - User:', user?.email, 'Loading:', isLoading);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
+          <Loader2 className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Vérification des permissions...</p>
         </div>
       </div>
     );
   }
 
-  // Vérifier si l'utilisateur est admin (email spécifique)
-  if (!user || user.email !== 'contact@infinityagency.be') {
+  // Vérifier si l'utilisateur est connecté et est admin
+  if (!user) {
+    console.log('AdminRoute - Pas d\'utilisateur, redirection vers /admin/login');
     return <Navigate to="/admin/login" replace />;
   }
 
+  if (user.email !== 'contact@infinityagency.be') {
+    console.log('AdminRoute - Utilisateur non admin, redirection vers /client/login');
+    return <Navigate to="/client/login" replace />;
+  }
+
+  console.log('AdminRoute - Accès autorisé pour admin');
   return <>{children}</>;
 };
 
@@ -33,22 +43,32 @@ const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 const ClientRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, isLoading } = useAuth();
 
+  console.log('ClientRoute - User:', user?.email, 'Loading:', isLoading);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement...</p>
+          <Loader2 className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Vérification de la session...</p>
         </div>
       </div>
     );
   }
 
-  // Vérifier si l'utilisateur est connecté et n'est pas admin
-  if (!user || user.email === 'contact@infinityagency.be') {
+  // Vérifier si l'utilisateur est connecté
+  if (!user) {
+    console.log('ClientRoute - Pas d\'utilisateur, redirection vers /client/login');
     return <Navigate to="/client/login" replace />;
   }
 
+  // Vérifier que ce n'est pas l'admin
+  if (user.email === 'contact@infinityagency.be') {
+    console.log('ClientRoute - Admin détecté, redirection vers /admin');
+    return <Navigate to="/admin" replace />;
+  }
+
+  console.log('ClientRoute - Accès autorisé pour client');
   return <>{children}</>;
 };
 

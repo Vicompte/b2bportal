@@ -12,47 +12,21 @@ const ClientLogin: React.FC = () => {
   const [connectionStatus, setConnectionStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
 
-  // 1. Vérifier la session existante au chargement
+  // 1. Redirection automatique si utilisateur déjà connecté
   useEffect(() => {
-    const checkExistingSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        
-        if (!error && session?.user) {
-          console.log('Session existante détectée pour:', session.user.email);
-          
-          // Redirection immédiate selon l'email
-          if (session.user.email === 'contact@infinityagency.be') {
-            console.log('Admin détecté, redirection vers /admin');
-            navigate('/admin', { replace: true });
-          } else {
-            console.log('Client détecté, redirection vers /client');
-            navigate('/client', { replace: true });
-          }
-        }
-      } catch (err) {
-        console.error('Erreur lors de la vérification de session:', err);
-      }
-    };
-
-    checkExistingSession();
-  }, [navigate]);
-
-  // 2. Redirection automatique si utilisateur connecté via AuthContext
-  useEffect(() => {
-    if (user) {
-      console.log('Utilisateur connecté via AuthContext, redirection...');
+    if (!authLoading && user) {
+      console.log('Utilisateur déjà connecté, redirection automatique...');
       if (user.email === 'contact@infinityagency.be') {
         navigate('/admin', { replace: true });
       } else {
         navigate('/client', { replace: true });
       }
     }
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
-  // 3. Tester la connexion Supabase au chargement
+  // 2. Tester la connexion Supabase au chargement
   useEffect(() => {
     const checkConnection = async () => {
       const isConnected = await testSupabaseConnection();
@@ -62,7 +36,7 @@ const ClientLogin: React.FC = () => {
     checkConnection();
   }, []);
 
-  // 4. Handler de connexion avec redirection immédiate
+  // 3. Handler de connexion avec redirection immédiate et systématique
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -76,10 +50,14 @@ const ClientLogin: React.FC = () => {
         password,
       });
 
-      console.log('Résultat connexion client:', { data, error });
+      console.log('Résultat connexion:', { 
+        success: !error, 
+        userEmail: data?.user?.email,
+        error: error?.message 
+      });
 
       if (error) {
-        console.error('Erreur de connexion client:', error);
+        console.error('Erreur de connexion:', error);
         
         // Messages d'erreur plus explicites
         let errorMessage = error.message;
@@ -94,25 +72,46 @@ const ClientLogin: React.FC = () => {
         }
         
         setError(errorMessage);
-      } else if (data.user) {
-        console.log('Connexion client réussie pour:', data.user.email);
+        setIsLoading(false);
+        return;
+      }
+
+      // ✅ CONNEXION RÉUSSIE - REDIRECTION SYSTÉMATIQUE
+      if (data.user) {
+        console.log('✅ Connexion réussie pour:', data.user.email);
         
-        // Redirection immédiate selon le rôle
+        // Redirection immédiate et systématique selon l'email
         if (data.user.email === 'contact@infinityagency.be') {
-          console.log('Admin détecté, redirection vers /admin');
+          console.log('🔄 Redirection admin vers /admin');
           navigate('/admin', { replace: true });
         } else {
-          console.log('Client détecté, redirection vers /client');
+          console.log('🔄 Redirection client vers /client');
           navigate('/client', { replace: true });
         }
+      } else {
+        console.error('❌ Pas d\'utilisateur dans la réponse');
+        setError('Erreur de connexion - aucun utilisateur retourné');
+        setIsLoading(false);
       }
     } catch (err) {
-      console.error('Erreur générale client:', err);
+      console.error('❌ Erreur générale:', err);
       setError('Une erreur est survenue lors de la connexion');
-    } finally {
       setIsLoading(false);
     }
+    // Note: setIsLoading(false) n'est pas appelé en cas de succès car la redirection se fait immédiatement
   };
+
+  // Afficher un loader si l'auth est en cours de chargement
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-gray-600">Vérification de la session...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center px-4">
@@ -222,7 +221,7 @@ const ClientLogin: React.FC = () => {
               {isLoading ? (
                 <div className="flex items-center justify-center space-x-2">
                   <Loader2 className="w-4 h-4 animate-spin" />
-                  <span>Connexion...</span>
+                  <span>Connexion en cours...</span>
                 </div>
               ) : (
                 'Se connecter'
@@ -242,6 +241,7 @@ const ClientLogin: React.FC = () => {
               <button
                 onClick={() => navigate('/admin/login')}
                 className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                disabled={isLoading}
               >
                 Accès administrateur
               </button>

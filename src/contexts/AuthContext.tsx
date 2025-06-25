@@ -31,31 +31,42 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const location = useLocation();
 
   useEffect(() => {
+    let mounted = true;
+
     // Récupérer la session actuelle
     const getSession = async () => {
       try {
+        console.log('🔍 Vérification de la session existante...');
         const { data: { session }, error } = await supabase.auth.getSession();
         
+        if (!mounted) return;
+
         if (error) {
-          console.error('Erreur lors de la récupération de la session:', error);
-        } else {
-          console.log('Session récupérée:', session?.user?.email || 'Aucune session');
-          setUser(session?.user ?? null);
+          console.error('❌ Erreur lors de la récupération de la session:', error);
+          setUser(null);
+        } else if (session?.user) {
+          console.log('✅ Session existante trouvée pour:', session.user.email);
+          setUser(session.user);
           
-          // Redirection automatique si utilisateur connecté et sur une page de login
-          if (session?.user && (location.pathname.includes('/login') || location.pathname === '/')) {
-            console.log('Redirection automatique depuis la session...');
+          // Redirection automatique si sur une page de login
+          const isOnLoginPage = location.pathname.includes('/login') || location.pathname === '/';
+          if (isOnLoginPage) {
+            console.log('🔄 Redirection automatique depuis session existante...');
             if (session.user.email === 'contact@infinityagency.be') {
               navigate('/admin', { replace: true });
             } else {
               navigate('/client', { replace: true });
             }
           }
+        } else {
+          console.log('ℹ️ Aucune session existante');
+          setUser(null);
         }
       } catch (err) {
-        console.error('Erreur générale getSession:', err);
+        console.error('❌ Erreur générale getSession:', err);
+        if (mounted) setUser(null);
       } finally {
-        setIsLoading(false);
+        if (mounted) setIsLoading(false);
       }
     };
 
@@ -64,40 +75,61 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     // Écouter les changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state change:', event, session?.user?.email || 'Aucun utilisateur');
-        setUser(session?.user ?? null);
-        setIsLoading(false);
+        if (!mounted) return;
+
+        console.log('🔄 Auth state change:', event, session?.user?.email || 'Aucun utilisateur');
         
-        // Redirection automatique lors des changements d'état
+        setUser(session?.user ?? null);
+        
+        // Gérer les redirections selon l'événement
         if (event === 'SIGNED_IN' && session?.user) {
-          console.log('SIGNED_IN détecté, redirection...');
+          console.log('✅ SIGNED_IN détecté, redirection...');
+          setIsLoading(false);
+          
+          // Redirection immédiate selon l'email
           if (session.user.email === 'contact@infinityagency.be') {
+            console.log('🔄 Redirection admin vers /admin');
             navigate('/admin', { replace: true });
           } else {
+            console.log('🔄 Redirection client vers /client');
             navigate('/client', { replace: true });
           }
         } else if (event === 'SIGNED_OUT') {
-          console.log('SIGNED_OUT détecté, redirection vers login...');
+          console.log('🚪 SIGNED_OUT détecté, redirection vers login...');
+          setIsLoading(false);
           navigate('/client/login', { replace: true });
+        } else if (event === 'TOKEN_REFRESHED') {
+          console.log('🔄 Token rafraîchi');
+          setIsLoading(false);
+        } else {
+          setIsLoading(false);
         }
       }
     );
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, [navigate, location.pathname]);
 
   const signOut = async () => {
     try {
-      console.log('Déconnexion en cours...');
+      console.log('🚪 Déconnexion en cours...');
+      setIsLoading(true);
+      
       const { error } = await supabase.auth.signOut();
+      
       if (error) {
-        console.error('Erreur lors de la déconnexion:', error);
+        console.error('❌ Erreur lors de la déconnexion:', error);
       } else {
-        console.log('Déconnexion réussie');
+        console.log('✅ Déconnexion réussie');
         // La redirection sera gérée par onAuthStateChange
       }
     } catch (err) {
-      console.error('Erreur générale signOut:', err);
+      console.error('❌ Erreur générale signOut:', err);
+    } finally {
+      setIsLoading(false);
     }
   };
 
