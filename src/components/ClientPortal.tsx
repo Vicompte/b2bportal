@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { FileText, Download, LogOut, User, AlertCircle, Loader2 } from 'lucide-react';
-import { supabase, listUserFactureFiles, getFacturePublicUrl } from '../utils/supabase';
-import { useAuth } from '../contexts/AuthContext';
+import { supabase, listUserFactureFiles, getFacturePublicUrl } from '../lib/supabase';
+import { useAuth } from '../providers/AuthProvider';
 
 interface FactureFolder {
   id: string;
@@ -15,6 +15,8 @@ const ClientPortal: React.FC = () => {
   const [factures, setFactures] = useState<FactureFolder[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  console.log('🔍 ClientPortal - User:', user?.email || 'Aucun');
 
   // Récupérer les factures du client
   useEffect(() => {
@@ -120,6 +122,7 @@ const ClientPortal: React.FC = () => {
 
   const handleSignOut = async () => {
     try {
+      console.log('🚪 Déconnexion client...');
       await signOut();
     } catch (err) {
       console.error('Erreur lors de la déconnexion:', err);
