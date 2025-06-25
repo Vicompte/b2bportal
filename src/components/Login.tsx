@@ -19,7 +19,7 @@ export default function Login({ type }: LoginProps) {
 
   console.log(`🔍 Login ${type} - Session:`, session?.user?.email || 'Aucune', 'AuthLoading:', authLoading)
 
-  // IMPORTANT: Redirection si déjà connecté
+  // IMPORTANT: Redirection automatique si déjà connecté
   useEffect(() => {
     if (!authLoading && session) {
       console.log(`👤 Utilisateur déjà connecté: ${session.user.email}`)
