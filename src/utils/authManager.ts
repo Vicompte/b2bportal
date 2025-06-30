@@ -222,3 +222,6 @@ export const migrateExistingClients = async (): Promise<void> => {
   
   console.log('✅ Migration terminée')
 }
+
+// ✅ Export de createClientUser pour utilisation dans AdminDashboard
+export { createClientUser }
