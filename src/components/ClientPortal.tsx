@@ -17,11 +17,13 @@ import {
   Eye,
   TrendingUp,
   CreditCard,
-  DollarSign
+  DollarSign,
+  Calculator
 } from 'lucide-react';
 import { supabase, listUserFactureFiles, getFacturePublicUrl } from '../lib/supabase';
 import { useAuth } from '../providers/AuthProvider';
 import { getClientBySupabaseId } from '../utils/authManager';
+import { migrerFacturesVersTVA } from '../utils/clientDataManager';
 
 interface FactureFolder {
   id: string;
@@ -34,9 +36,11 @@ interface DashboardStats {
   totalFactures: number;
   facturesPayees: number;
   facturesEnAttente: number;
-  montantTotal: number;
-  montantPaye: number;
-  montantEnAttente: number;
+  montantTotalHT: number;
+  montantTotalTTC: number;
+  montantPayeTTC: number;
+  montantEnAttenteTTC: number;
+  totalTVA: number;
 }
 
 const ClientPortal: React.FC = () => {
@@ -50,9 +54,11 @@ const ClientPortal: React.FC = () => {
     totalFactures: 0,
     facturesPayees: 0,
     facturesEnAttente: 0,
-    montantTotal: 0,
-    montantPaye: 0,
-    montantEnAttente: 0
+    montantTotalHT: 0,
+    montantTotalTTC: 0,
+    montantPayeTTC: 0,
+    montantEnAttenteTTC: 0,
+    totalTVA: 0
   });
 
   console.log('🔍 ClientPortal - User:', user?.email || 'Aucun');
@@ -62,17 +68,24 @@ const ClientPortal: React.FC = () => {
     if (user?.id) {
       const client = getClientBySupabaseId(user.id);
       if (client) {
-        setClientData(client.data || {
+        const data = client.data || {
           factures: [],
           contenus: [],
           credentials: [],
           rapports: []
-        });
+        };
+        
+        // Migration automatique des factures
+        if (data.factures) {
+          data.factures = migrerFacturesVersTVA(data.factures);
+        }
+        
+        setClientData(data);
       }
     }
   }, [user?.id]);
 
-  // Calculer les statistiques du dashboard
+  // Calculer les statistiques du dashboard avec TVA
   useEffect(() => {
     if (clientData?.factures) {
       const factures = clientData.factures;
@@ -81,13 +94,15 @@ const ClientPortal: React.FC = () => {
         totalFactures: factures.length,
         facturesPayees: factures.filter((f: any) => f.statut === 'payee').length,
         facturesEnAttente: factures.filter((f: any) => f.statut === 'en_attente').length,
-        montantTotal: factures.reduce((total: number, f: any) => total + f.montant, 0),
-        montantPaye: factures
+        montantTotalHT: factures.reduce((total: number, f: any) => total + (f.montantHT || 0), 0),
+        montantTotalTTC: factures.reduce((total: number, f: any) => total + (f.montantTTC || f.montant || 0), 0),
+        montantPayeTTC: factures
           .filter((f: any) => f.statut === 'payee')
-          .reduce((total: number, f: any) => total + f.montant, 0),
-        montantEnAttente: factures
+          .reduce((total: number, f: any) => total + (f.montantTTC || f.montant || 0), 0),
+        montantEnAttenteTTC: factures
           .filter((f: any) => f.statut === 'en_attente')
-          .reduce((total: number, f: any) => total + f.montant, 0)
+          .reduce((total: number, f: any) => total + (f.montantTTC || f.montant || 0), 0),
+        totalTVA: factures.reduce((total: number, f: any) => total + (f.montantTVA || 0), 0)
       };
       
       setDashboardStats(stats);
@@ -201,7 +216,7 @@ const ClientPortal: React.FC = () => {
 
   const clientName = user?.user_metadata?.name || user?.email || 'Client';
 
-  // Composant Dashboard Stats
+  // Composant Dashboard Stats avec TVA
   const DashboardSection = () => (
     <div>
       <h2 className="text-2xl font-bold text-gray-900 mb-6">Tableau de Bord</h2>
@@ -247,41 +262,41 @@ const ClientPortal: React.FC = () => {
           </div>
         </div>
 
-        {/* Montant total */}
+        {/* Montant total HT */}
         <div className="bg-gradient-to-r from-purple-500 to-purple-600 rounded-xl p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-purple-100 text-sm font-medium">Montant Total</p>
-              <p className="text-2xl font-bold">{formatMontant(dashboardStats.montantTotal)}</p>
+              <p className="text-purple-100 text-sm font-medium">Total HT</p>
+              <p className="text-2xl font-bold">{formatMontant(dashboardStats.montantTotalHT)}</p>
             </div>
             <div className="w-12 h-12 bg-purple-400 bg-opacity-30 rounded-lg flex items-center justify-center">
+              <Calculator className="w-6 h-6" />
+            </div>
+          </div>
+        </div>
+
+        {/* Total TVA */}
+        <div className="bg-gradient-to-r from-indigo-500 to-indigo-600 rounded-xl p-6 text-white">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-indigo-100 text-sm font-medium">Total TVA</p>
+              <p className="text-2xl font-bold">{formatMontant(dashboardStats.totalTVA)}</p>
+            </div>
+            <div className="w-12 h-12 bg-indigo-400 bg-opacity-30 rounded-lg flex items-center justify-center">
               <TrendingUp className="w-6 h-6" />
             </div>
           </div>
         </div>
 
-        {/* Montant payé */}
+        {/* Montant total TTC */}
         <div className="bg-gradient-to-r from-emerald-500 to-emerald-600 rounded-xl p-6 text-white">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-emerald-100 text-sm font-medium">Montant Payé</p>
-              <p className="text-2xl font-bold">{formatMontant(dashboardStats.montantPaye)}</p>
+              <p className="text-emerald-100 text-sm font-medium">Total TTC</p>
+              <p className="text-2xl font-bold">{formatMontant(dashboardStats.montantTotalTTC)}</p>
             </div>
             <div className="w-12 h-12 bg-emerald-400 bg-opacity-30 rounded-lg flex items-center justify-center">
               <CreditCard className="w-6 h-6" />
-            </div>
-          </div>
-        </div>
-
-        {/* Montant en attente */}
-        <div className="bg-gradient-to-r from-red-500 to-red-600 rounded-xl p-6 text-white">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-red-100 text-sm font-medium">Montant En Attente</p>
-              <p className="text-2xl font-bold">{formatMontant(dashboardStats.montantEnAttente)}</p>
-            </div>
-            <div className="w-12 h-12 bg-red-400 bg-opacity-30 rounded-lg flex items-center justify-center">
-              <DollarSign className="w-6 h-6" />
             </div>
           </div>
         </div>
@@ -321,10 +336,10 @@ const ClientPortal: React.FC = () => {
           {/* Répartition des montants */}
           <div>
             <div className="flex justify-between items-center mb-2">
-              <span className="text-sm font-medium text-gray-700">Répartition des Montants</span>
+              <span className="text-sm font-medium text-gray-700">Répartition des Montants TTC</span>
               <span className="text-sm text-gray-500">
-                {dashboardStats.montantTotal > 0 
-                  ? Math.round((dashboardStats.montantPaye / dashboardStats.montantTotal) * 100)
+                {dashboardStats.montantTotalTTC > 0 
+                  ? Math.round((dashboardStats.montantPayeTTC / dashboardStats.montantTotalTTC) * 100)
                   : 0}%
               </span>
             </div>
@@ -332,15 +347,15 @@ const ClientPortal: React.FC = () => {
               <div 
                 className="bg-gradient-to-r from-emerald-500 to-emerald-600 h-3 rounded-full transition-all duration-300"
                 style={{ 
-                  width: dashboardStats.montantTotal > 0 
-                    ? `${(dashboardStats.montantPaye / dashboardStats.montantTotal) * 100}%`
+                  width: dashboardStats.montantTotalTTC > 0 
+                    ? `${(dashboardStats.montantPayeTTC / dashboardStats.montantTotalTTC) * 100}%`
                     : '0%'
                 }}
               ></div>
             </div>
             <div className="flex justify-between text-xs text-gray-500 mt-1">
-              <span>{formatMontant(dashboardStats.montantPaye)} payé</span>
-              <span>{formatMontant(dashboardStats.montantEnAttente)} en attente</span>
+              <span>{formatMontant(dashboardStats.montantPayeTTC)} payé</span>
+              <span>{formatMontant(dashboardStats.montantEnAttenteTTC)} en attente</span>
             </div>
           </div>
         </div>
@@ -366,7 +381,7 @@ const ClientPortal: React.FC = () => {
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="font-semibold text-gray-900">{formatMontant(facture.montant)}</p>
+                    <p className="font-semibold text-gray-900">{formatMontant(facture.montantTTC || facture.montant || 0)}</p>
                     <p className={`text-xs ${
                       facture.statut === 'payee' ? 'text-green-600' : 'text-orange-600'
                     }`}>
@@ -455,7 +470,7 @@ const ClientPortal: React.FC = () => {
           {/* Section Dashboard */}
           {activeTab === 'dashboard' && <DashboardSection />}
 
-          {/* Section Factures */}
+          {/* Section Factures avec TVA */}
           {activeTab === 'factures' && (
             <div>
               <h2 className="text-2xl font-bold text-gray-900 mb-6">Mes Factures</h2>
@@ -498,10 +513,10 @@ const ClientPortal: React.FC = () => {
                                 </div>
                               </div>
                               <div>
-                                <p className="text-sm text-gray-500">Montant</p>
+                                <p className="text-sm text-gray-500">Montant TTC</p>
                                 <div className="flex items-center space-x-1">
                                   <Euro className="w-4 h-4 text-green-600" />
-                                  <p className="font-semibold text-green-600">{formatMontant(facture.montant)}</p>
+                                  <p className="font-semibold text-green-600">{formatMontant(facture.montantTTC || facture.montant || 0)}</p>
                                 </div>
                               </div>
                               <div>
@@ -525,6 +540,30 @@ const ClientPortal: React.FC = () => {
                               <p className="text-sm text-gray-500">Description</p>
                               <p className="text-gray-700">{facture.description}</p>
                             </div>
+
+                            {/* Détail TVA */}
+                            {facture.montantHT !== undefined && (
+                              <div className="mb-4 bg-blue-50 p-4 rounded-lg">
+                                <h4 className="text-sm font-semibold text-blue-900 mb-3 flex items-center">
+                                  <Calculator className="w-4 h-4 mr-2" />
+                                  Détail TVA
+                                </h4>
+                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                  <div>
+                                    <span className="text-gray-600">Montant HT :</span>
+                                    <span className="font-semibold ml-2">{formatMontant(facture.montantHT)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-600">TVA ({facture.tauxTVA}%) :</span>
+                                    <span className="font-semibold ml-2">{formatMontant(facture.montantTVA || 0)}</span>
+                                  </div>
+                                  <div>
+                                    <span className="text-gray-600">Total TTC :</span>
+                                    <span className="font-bold text-lg text-blue-600 ml-2">{formatMontant(facture.montantTTC)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
 
                             {/* Section PDF */}
                             <div className="bg-gray-50 rounded-lg p-4">
