@@ -18,7 +18,8 @@ import {
   AlertCircle,
   Euro,
   Calendar,
-  DollarSign
+  DollarSign,
+  LogOut
 } from 'lucide-react';
 import { 
   loadClientData, 
@@ -42,6 +43,8 @@ import {
   User
 } from '../utils/authManager';
 import { uploadFacturePDF } from '../lib/supabase';
+import { useAuth } from '../providers/AuthProvider';
+import AdminPanel from './AdminPanel';
 
 interface StatsGlobales {
   totalFactures: number;
@@ -74,6 +77,7 @@ interface FactureEnAttente {
 }
 
 const AdminDashboard: React.FC = () => {
+  const { signOut } = useAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [clients, setClients] = useState<User[]>([]);
   const [selectedClient, setSelectedClient] = useState<User | null>(null);
@@ -113,6 +117,14 @@ const AdminDashboard: React.FC = () => {
       style: 'currency',
       currency: 'EUR'
     }).format(montant);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await signOut();
+    } catch (err) {
+      console.error('Erreur lors de la déconnexion:', err);
+    }
   };
 
   // Calculer les statistiques globales
@@ -286,6 +298,19 @@ const AdminDashboard: React.FC = () => {
   const statsParClient = calculateStatsParClient();
   const facturesEnAttenteListe = getFacturesEnAttente();
 
+  // Si on affiche le panel d'un client, utiliser AdminPanel
+  if (showClientPanel && selectedClient) {
+    return (
+      <AdminPanel 
+        onBackToClient={() => {
+          setShowClientPanel(false);
+          setSelectedClient(null);
+          refreshClients(); // Rafraîchir les données après modification
+        }}
+      />
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Admin */}
@@ -306,6 +331,13 @@ const AdminDashboard: React.FC = () => {
                 <p className="text-sm text-purple-200">Total Clients</p>
                 <p className="text-2xl font-bold">{clients.length}</p>
               </div>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center space-x-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition-colors duration-200"
+              >
+                <LogOut className="w-4 h-4" />
+                <span className="hidden sm:inline">Se déconnecter</span>
+              </button>
             </div>
           </div>
         </div>
@@ -802,40 +834,6 @@ const AdminDashboard: React.FC = () => {
           )}
         </div>
       </div>
-
-      {/* Panel de gestion client */}
-      {showClientPanel && selectedClient && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex justify-between items-center">
-                <h3 className="text-lg font-semibold">
-                  Gestion de {selectedClient.name} - {selectedClient.company}
-                </h3>
-                <button
-                  onClick={() => setShowClientPanel(false)}
-                  className="text-gray-400 hover:text-gray-600"
-                >
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-            </div>
-            <div className="p-6">
-              <p className="text-gray-600 mb-4">
-                Utilisez le panel d'administration pour gérer les données de ce client.
-              </p>
-              <div className="flex space-x-4">
-                <div className="text-sm">
-                  <span className="font-medium">Email:</span> {selectedClient.username}
-                </div>
-                <div className="text-sm">
-                  <span className="font-medium">ID Supabase:</span> {selectedClient.supabaseUserId || 'Non défini'}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
